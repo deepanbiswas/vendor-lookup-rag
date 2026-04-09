@@ -1,0 +1,2 @@
+vendor_id,company_code,name_1,name_2,address,city,zip_code,state,country,vat_no,date_format,eu_member_flag,notes
+v-001,CC1,Acme GmbH,Remittance line,Street 1,Berlin,10115,BE,DE,DE123456789,dd.mm.yyyy,Y,unmapped column
