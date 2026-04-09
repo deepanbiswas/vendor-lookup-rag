@@ -21,7 +21,7 @@ TDD-first delivery aligned with [specs/vendor-lookup-agent-specifications.md](sp
 | 7 | Ingestion + CLI | `ingest_vendor_csv`, `vendor-ingest` script; mocked test | [x] |
 | 8 | Retrieval | `retrieve_vendors()`; unit tests with mocks | [x] |
 | 9 | Pydantic AI agent | `build_vendor_agent()` + `search_vendors` tool | [x] |
-| 10 | Streamlit UI | `streamlit run src/vendor_lookup_rag/app.py` (from `vendorLookupRAGLocal/`) | [x] |
+| 10 | Streamlit UI | `streamlit run src/vendor_lookup_rag/app.py` (from repo root) | [x] |
 | 11 | Compose + CI + runbook | `.env.example`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml), README | [x] |
 
 ## Commands (cheat sheet)

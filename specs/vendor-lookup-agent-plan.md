@@ -206,7 +206,7 @@ flowchart LR
 - [ ] Optional **Redis** in Compose — not added (optional per plan).
 - [ ] Optional **Ollama Compose profile** — not added (optional per plan; host Ollama documented).
 - [x] [.env.example](../.env.example) with env vars.
-- [x] CI workflow: [.github/workflows/ci.yml](../.github/workflows/ci.yml) (unit `pytest` on push/PR when `vendorLookupRAGLocal/**` changes).
+- [x] CI workflow: [.github/workflows/vendor-lookup-rag-ci.yml](../.github/workflows/vendor-lookup-rag-ci.yml) (unit `pytest` and Qdrant integration on push/PR).
 - [x] [README.md](../README.md) runbook: host Ollama + `docker compose` for Qdrant.
 
 ---

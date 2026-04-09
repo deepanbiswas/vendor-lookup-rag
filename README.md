@@ -2,7 +2,7 @@
 
 Vendor lookup on a vendor master list using **RAG**, **Ollama** (embeddings + chat), **Qdrant**, and **Pydantic AI**, with **TDD** and **spec-driven development**.
 
-This folder lives in the **`vendor_lookup`** monorepo; use the parent Git remote.
+This is a **standalone** Git repository (clone it on its own; it is no longer under `vendor_lookup`).
 
 ## Layout
 
@@ -19,7 +19,7 @@ This folder lives in the **`vendor_lookup`** monorepo; use the parent Git remote
 ## Quick start (development)
 
 ```bash
-cd vendorLookupRAGLocal
+cd vendor-lookup-rag   # or your clone directory
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -81,7 +81,7 @@ Structured JSON lines per `retrieve_vendors` call: set `VENDOR_LOOKUP_TELEMETRY_
 
 ## CI
 
-GitHub Actions: `.github/workflows/ci.yml` (runs when files under `vendorLookupRAGLocal/` change in the parent repo).
+GitHub Actions: `.github/workflows/vendor-lookup-rag-ci.yml` (runs on push, pull request, and manual dispatch).
 
 - **Unit job:** `pip install -e ".[dev]"` and `pytest` (default markers: no `large_csv`, no `requires_ollama`).
 - **Integration job (Qdrant):** starts `docker compose up -d` for Qdrant, waits for `/readyz`, then `pytest -m "integration and not requires_ollama"` so live Qdrant tests run without Ollama. Runs in parallel with the unit job.
