@@ -6,6 +6,7 @@ import logging
 import time
 
 from vendor_lookup_rag.agent.deps import AgentDeps
+from vendor_lookup_rag.config import Settings
 
 _logger = logging.getLogger(__name__)
 from vendor_lookup_rag.matching import classify_matches
@@ -38,6 +39,15 @@ def _hit_to_candidate(h: SearchHit) -> SearchVendorCandidate:
     )
 
 
+def _retrieval_score_floor(settings: Settings) -> float:
+    """Do not retrieve or return candidates below the partial threshold (and respect RETRIEVAL_MIN_SCORE)."""
+    p = settings.score_threshold_partial
+    r = settings.retrieval_min_score
+    if r is not None:
+        return max(p, r)
+    return p
+
+
 def search_vendors_tool_body(deps: AgentDeps, user_query: str) -> SearchVendorToolResult:
     """
     Run retrieval + classification; return a structured result for the chat model.
@@ -52,6 +62,7 @@ def search_vendors_tool_body(deps: AgentDeps, user_query: str) -> SearchVendorTo
             embedder=deps.embedder,
             store=deps.store,
             settings=settings,
+            min_score=_retrieval_score_floor(settings),
         )
     except RuntimeError as e:
         _logger.error("search_vendors tool retrieval failed: %s", e)

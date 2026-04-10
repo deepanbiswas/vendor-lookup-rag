@@ -34,6 +34,8 @@ pytest
 
 Default URLs: Ollama `http://localhost:11434`, Qdrant `http://localhost:6333`.
 
+**Runbook (health checks, env for integration tests, CI parity):** see [`docs/dev-stack.md`](docs/dev-stack.md). Quick verify: `./scripts/verify_stack.sh` (or `qdrant-only` before Qdrant-only pytest).
+
 ## Ingest vendor CSV
 
 Rows are mapped to a canonical `VendorRecord` using a **column mapping** (logical field → ordered list of candidate header names; first non-empty cell wins). Defaults match common exports and SAP-style files such as `vendor_id`, `name_1` / `name_2` (primary / secondary name), `zip_code`, `vat_no`, `company_code`, `address`, `state`, `date_format`, `eu_member_flag`. Columns not mapped to a known field are stored in `extras` on the record and included in embedding text.
@@ -53,7 +55,7 @@ To point at another ERP layout, provide a JSON file that **merges** with the def
 ```bash
 vendor-ingest path/to/vendor_master.csv
 # Parse-only check: vendor-ingest --dry-run path/to/vendor_master.csv
-# Progress on large files: vendor-ingest -v --progress-every 1000 path/to/vendor_master.csv
+# Progress prints to stderr by default; use -q to silence. Interval: --progress-every 1000
 ```
 
 ## Chat UI (Streamlit)

@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+
 import streamlit as st
 
 from vendor_lookup_rag.agent import AgentDeps
 from vendor_lookup_rag.agent.run_trace import format_agent_run_trace
 from vendor_lookup_rag.adapters.factory import make_text_embedder, make_vendor_agent_runner, open_vector_store
-from vendor_lookup_rag.config import get_settings
+from vendor_lookup_rag.config import Settings, get_settings
 from vendor_lookup_rag.health import fetch_services_health_urls
 from vendor_lookup_rag.observability import configure_app_logging, configure_observability
 
@@ -18,8 +21,15 @@ MAX_CHAT_MESSAGES = 128
 _logger = logging.getLogger(__name__)
 
 
+def _settings_cache_signature(s: Settings) -> str:
+    """Stable hash so ``st.cache_resource`` rebuilds when ``.env`` / env vars change."""
+    payload = json.dumps(s.model_dump(), sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 @st.cache_resource
-def _deps() -> AgentDeps:
+def _deps(settings_sig: str) -> AgentDeps:
+    get_settings.cache_clear()
     s = get_settings()
     # Avoid startup warning when Qdrant is unreachable; health is shown in the sidebar.
     handle = open_vector_store(s, check_compatibility=False)
@@ -38,12 +48,14 @@ def _trim_messages(messages: list[dict]) -> None:
 
 
 def main() -> None:
-    configure_app_logging(get_settings())
+    get_settings.cache_clear()
+    s_boot = get_settings()
+    configure_app_logging(s_boot)
     st.set_page_config(page_title="Vendor Lookup", page_icon="🔎")
     st.title("Vendor Lookup Agent")
     st.caption("Local RAG against your vendor master (Ollama + Qdrant).")
 
-    deps = _deps()
+    deps = _deps(_settings_cache_signature(s_boot))
     configure_observability(deps.settings)
     agent = make_vendor_agent_runner(deps.settings)
     s = deps.settings
@@ -58,6 +70,10 @@ def main() -> None:
 
         st.subheader("Models")
         st.code(f"chat: {s.chat_model}\nembed: {s.embedding_model}", language="text")
+        st.caption(
+            f"Match thresholds (from env): exact ≥ {s.score_threshold_exact}, "
+            f"partial ≥ {s.score_threshold_partial}"
+        )
 
         st.subheader("Observability")
         st.caption(

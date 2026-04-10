@@ -100,8 +100,33 @@ def test_ingest_verbose_progress_stderr(tmp_path: Path, capsys: pytest.CaptureFi
         progress_every=1,
     )
     err = capsys.readouterr().err
+    assert "Ingesting" in err
     assert "Ingest progress: 1 rows" in err
     assert "Ingest progress: 2 rows" in err
+
+
+def test_ingest_progress_milestones_respect_batch_size(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Progress lines must fire at N, 2N, … even when upsert batch size does not divide N."""
+    lines = ["vendor_id,legal_name\n"] + [f"id{i},Co {i}\n" for i in range(520)]
+    p = tmp_path / "batches.csv"
+    p.write_text("".join(lines), encoding="utf-8")
+    emb = FakeTextEmbedder(vector=[0.0] * 8)
+    store = FakeVectorStore()
+    s = Settings(
+        embedding_vector_size=8,
+        qdrant_collection="milestone_c",
+        ingest_upsert_batch_size=128,
+    )
+    ingest_vendor_csv(
+        p,
+        settings=s,
+        embedder=emb,
+        store=store,
+        verbose=True,
+        progress_every=500,
+    )
+    err = capsys.readouterr().err
+    assert "Ingest progress: 500 rows indexed." in err
 
 
 def test_ingest_streaming_counts_many_synthetic_rows(tmp_path: Path) -> None:

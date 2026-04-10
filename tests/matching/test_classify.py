@@ -115,6 +115,24 @@ def test_partial_only() -> None:
     assert r.kind == MatchKind.PARTIAL
 
 
+def test_partial_drops_candidates_below_partial_threshold() -> None:
+    """Only list rows at or above the partial cosine bar (sorted tail from Qdrant)."""
+    hits = [
+        _hit(0.72, vid="good", name="HYLAND ENTERPRISES INC"),
+        _hit(0.54, vid="weak", name="HYCHEM INC"),
+        _hit(0.40, vid="drop", name="OTHER"),
+    ]
+    r = classify_matches(
+        normalized_query=_nq("hyland"),
+        hits=hits,
+        score_exact=0.92,
+        score_partial=0.70,
+    )
+    assert r.kind == MatchKind.PARTIAL
+    assert len(r.hits) == 1
+    assert r.hits[0].record.vendor_id == "good"
+
+
 def test_high_exact_score_without_overlap_is_partial_not_exact() -> None:
     """Conservative: cosine alone does not yield EXACT without id or token agreement."""
     hits = [_hit(0.97, name="Acme GmbH")]
@@ -136,6 +154,7 @@ def test_none_low_score() -> None:
         score_partial=0.55,
     )
     assert r.kind == MatchKind.NONE
+    assert r.hits == []
 
 
 def test_boundary_exact_threshold_inclusive() -> None:

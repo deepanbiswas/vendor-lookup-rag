@@ -32,17 +32,17 @@ def main() -> None:
         help="Parse CSV only; do not call Ollama or Qdrant.",
     )
     p.add_argument(
-        "-v",
-        "--verbose",
+        "-q",
+        "--quiet",
         action="store_true",
-        help="Log ingest progress to stderr (see --progress-every).",
+        help="Suppress ingest progress lines on stderr (progress is shown by default).",
     )
     p.add_argument(
         "--progress-every",
         type=int,
         default=500,
         metavar="N",
-        help="With --verbose, log every N rows completed (default: 500). Use 0 to disable.",
+        help="Print progress every N rows completed (default: 500). Use 0 to disable periodic lines.",
     )
     args = p.parse_args()
     get_settings.cache_clear()
@@ -53,7 +53,7 @@ def main() -> None:
             sys.exit(0)
         n = ingest_vendor_csv(
             args.csv_path,
-            verbose=args.verbose,
+            verbose=not args.quiet,
             progress_every=args.progress_every,
         )
         print(f"Ingested {n} vendor rows.", file=sys.stderr)

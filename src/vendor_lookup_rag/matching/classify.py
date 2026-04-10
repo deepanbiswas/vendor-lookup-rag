@@ -58,6 +58,11 @@ def _name_overlap(normalized_query: str, record: VendorRecord) -> bool:
     )
 
 
+def _hits_meeting_partial_floor(hits: list[SearchHit], score_partial: float) -> list[SearchHit]:
+    """Drop retrieval tail below the partial cosine bar (list stays score-sorted)."""
+    return [h for h in hits if h.score >= score_partial]
+
+
 def classify_matches(
     *,
     normalized_query: str,
@@ -76,6 +81,10 @@ def classify_matches(
     Partial: top score >= score_partial.
 
     Otherwise none.
+
+    For **exact** and **partial**, returned ``hits`` only include rows with
+    ``score >= score_partial`` so the tool does not list weak tail matches. For **none**,
+    candidates are omitted (empty list).
     """
     if not hits:
         return MatchResult(
@@ -88,21 +97,22 @@ def classify_matches(
     query_compact = _query_compact(normalized_query)
     id_hit = _identifier_in_query(top.record, query_compact)
     name_overlap = _name_overlap(normalized_query, top.record)
+    at_partial = _hits_meeting_partial_floor(hits, score_partial)
 
     if top.score >= score_exact and (id_hit or name_overlap):
         return MatchResult(
             kind=MatchKind.EXACT,
-            hits=hits,
+            hits=at_partial,
             message="Exact match — displaying vendor details.",
         )
     if top.score >= score_partial:
         return MatchResult(
             kind=MatchKind.PARTIAL,
-            hits=hits,
+            hits=at_partial,
             message="Partial match — review suggested candidates below.",
         )
     return MatchResult(
         kind=MatchKind.NONE,
-        hits=hits,
+        hits=[],
         message="No confident match. Flag for manual verification.",
     )

@@ -36,8 +36,9 @@ def ingest_vendor_csv(
     Reads the CSV in a **streaming** fashion (row-by-row) so memory stays bounded for
     large exports.
 
-    If ``verbose`` is True and ``progress_every`` > 0, prints progress to stderr
-    every ``progress_every`` rows completed.
+    If ``verbose`` is True and ``progress_every`` > 0, prints a start line and
+    progress to stderr each time the completed row count crosses a multiple of
+    ``progress_every`` (works for any upsert batch size).
 
     If ``store`` is provided, vectors are written through that :class:`~vendor_lookup_rag.ports.vector_store.VectorStore`
     implementation and ``client`` is not used to build the store (useful for tests and alternate backends).
@@ -64,12 +65,20 @@ def ingest_vendor_csv(
     own_embedder = embedder is None
     emb = embedder or make_text_embedder(s)
 
+    if verbose and progress_every > 0:
+        print(f"Ingesting {path.resolve()} ...", file=sys.stderr)
+
     try:
         count = 0
+        next_milestone = progress_every
 
         def maybe_progress() -> None:
-            if verbose and progress_every > 0 and count % progress_every == 0:
-                print(f"Ingest progress: {count} rows indexed.", file=sys.stderr)
+            nonlocal next_milestone
+            if not verbose or progress_every <= 0:
+                return
+            while count >= next_milestone:
+                print(f"Ingest progress: {next_milestone} rows indexed.", file=sys.stderr)
+                next_milestone += progress_every
 
         batch: list[tuple[str, list[float], VendorRecord]] = []
         for row_num, rec in iter_vendor_csv(path, mapping=mapping):
