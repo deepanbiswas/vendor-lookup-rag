@@ -9,7 +9,11 @@ from pydantic import ValidationError
 from vendor_lookup_rag.config import Settings, get_column_mapping, get_settings
 
 
-def test_settings_defaults() -> None:
+def test_settings_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Defaults must not depend on repo ``.env`` or shell overrides."""
+    monkeypatch.delenv("VENDOR_LOOKUP_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SCORE_TOLERANCE", raising=False)
+    monkeypatch.chdir(tmp_path)
     s = Settings()
     assert s.ollama_base_url == "http://localhost:11434"
     assert s.qdrant_url == "http://localhost:6333"
@@ -24,6 +28,9 @@ def test_settings_defaults() -> None:
     assert s.agent_backend == "pydantic_ai"
     assert s.app_log_dir is None
     assert s.app_log_level == "ERROR"
+    assert s.score_threshold_exact == 0.92
+    assert s.score_threshold_partial == 0.55
+    assert s.score_tolerance == 0.0
     assert s.retrieval_min_score is None
     assert s.telemetry_log_dir is None
     assert s.telemetry_log_to_stderr is False
@@ -70,6 +77,21 @@ def test_ingest_upsert_batch_size_from_env(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_invalid_threshold_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SCORE_THRESHOLD_EXACT", "2.0")
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_score_tolerance_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SCORE_TOLERANCE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SCORE_TOLERANCE", "0.08")
+    s = Settings()
+    assert s.score_tolerance == 0.08
+
+
+def test_invalid_score_tolerance_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SCORE_TOLERANCE", "1.5")
     with pytest.raises(ValidationError):
         Settings()
 

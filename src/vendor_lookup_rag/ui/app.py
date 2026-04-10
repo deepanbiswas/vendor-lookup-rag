@@ -14,6 +14,7 @@ from vendor_lookup_rag.adapters.factory import make_text_embedder, make_vendor_a
 from vendor_lookup_rag.config import Settings, get_settings
 from vendor_lookup_rag.health import fetch_services_health_urls
 from vendor_lookup_rag.observability import configure_app_logging, configure_observability
+from vendor_lookup_rag.ui.chat_display import assistant_markdown_from_run as _assistant_markdown_from_run
 
 # Cap session history to avoid unbounded memory on long sessions.
 MAX_CHAT_MESSAGES = 128
@@ -60,6 +61,13 @@ def main() -> None:
     agent = make_vendor_agent_runner(deps.settings)
     s = deps.settings
 
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    pending = st.session_state.get("pending_agent_prompt")
+    agent_busy = pending is not None
+    show_trace = bool(st.session_state.get("show_agent_trace", False))
+
     with st.sidebar:
         st.subheader("Connection")
         health = _cached_services_health(s.ollama_base_url, s.qdrant_url)
@@ -72,29 +80,26 @@ def main() -> None:
         st.code(f"chat: {s.chat_model}\nembed: {s.embedding_model}", language="text")
         st.caption(
             f"Match thresholds (from env): exact ≥ {s.score_threshold_exact}, "
-            f"partial ≥ {s.score_threshold_partial}"
+            f"partial ≥ {s.score_threshold_partial}, tolerance ±{s.score_tolerance}"
         )
 
         st.subheader("Observability")
         st.caption(
             "OpenTelemetry / Logfire traces are exported to your configured backends "
-            "(not rendered here). The toggle below shows this **agent run transcript** "
-            "(messages, tool returns, usage) for the chat bubbles."
+            "(not rendered here). The toggle below shows the **agent run transcript** "
+            "(full top‑k retrieval, usage, messages) under replies."
         )
         st.checkbox(
             "Show agent run details under replies",
             key="show_agent_trace",
-            help="Off by default. Shows run id, token usage, and JSON messages for each assistant reply.",
+            disabled=agent_busy,
+            help="Hidden while a search is running so toggling does not interrupt the run.",
         )
 
         if st.button("Clear chat", type="secondary"):
             st.session_state.messages = []
+            st.session_state.pop("pending_agent_prompt", None)
             st.rerun()
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    show_trace = bool(st.session_state.get("show_agent_trace", False))
 
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
@@ -107,36 +112,33 @@ def main() -> None:
                 with st.expander("Agent run details (transcript & usage)", expanded=False):
                     st.code(m["trace"], language="json")
 
+    if pending is not None:
+        with st.spinner("Thinking…"):
+            try:
+                result = agent.run_sync(pending, deps=deps)
+                display = _assistant_markdown_from_run(result)
+                trace_text = format_agent_run_trace(result)
+                _logger.info("Agent completed a chat turn (display length=%s chars).", len(display))
+            except Exception as e:
+                st.error(
+                    "**Something went wrong calling the agent.** "
+                    "Check that Ollama is running, the chat model is pulled, and Qdrant is reachable "
+                    f"({s.qdrant_url}).\n\n`{e}`"
+                )
+                st.session_state.pop("pending_agent_prompt", None)
+                st.stop()
+        st.session_state.messages.append(
+            {"role": "assistant", "content": display, "trace": trace_text},
+        )
+        _trim_messages(st.session_state.messages)
+        st.session_state.pop("pending_agent_prompt", None)
+        st.rerun()
+
     if prompt := st.chat_input("Describe the vendor (name, VAT, city, …)"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         _trim_messages(st.session_state.messages)
-
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking…"):
-                try:
-                    result = agent.run_sync(prompt, deps=deps)
-                    text = result.output
-                    _logger.info("Agent completed a chat turn (output length=%s chars).", len(text))
-                except Exception as e:
-                    st.error(
-                        "**Something went wrong calling the agent.** "
-                        "Check that Ollama is running, the chat model is pulled, and Qdrant is reachable "
-                        f"({s.qdrant_url}).\n\n`{e}`"
-                    )
-                    st.stop()
-            st.markdown(text)
-            trace_text = format_agent_run_trace(result)
-            if show_trace:
-                with st.expander("Agent run details (transcript & usage)", expanded=True):
-                    st.code(trace_text, language="json")
-
-        st.session_state.messages.append(
-            {"role": "assistant", "content": text, "trace": trace_text},
-        )
-        _trim_messages(st.session_state.messages)
+        st.session_state.pending_agent_prompt = prompt
+        st.rerun()
 
 
 if __name__ == "__main__":

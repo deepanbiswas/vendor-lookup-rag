@@ -66,10 +66,62 @@ def test_search_vendors_tool_body_success_shape() -> None:
         assert out.ok is True
         assert out.kind == "exact"
         assert len(out.candidates) == 1
+        assert len(out.retrieval_top_k) == 1
         assert out.candidates[0].vendor_id == "v1"
         assert out.candidates[0].score == 0.95
     finally:
         deps.embedder.close()
+
+
+def test_search_vendors_tool_body_retrieval_top_k_includes_all_retrieved_hits() -> None:
+    """``retrieval_top_k`` mirrors raw vector hits; ``candidates`` follow classify output."""
+    deps = _minimal_deps()
+    r1 = VendorRecord(vendor_id="a", legal_name="High", city="C1")
+    r2 = VendorRecord(vendor_id="b", legal_name="Low", city="C2")
+    r3 = VendorRecord(vendor_id="c", legal_name="Low2", city="C3")
+    h1 = SearchHit(score=0.95, record=r1)
+    h2 = SearchHit(score=0.50, record=r2)
+    h3 = SearchHit(score=0.49, record=r3)
+    match = MatchResult(kind=MatchKind.EXACT, hits=[h1], message="ok")
+    try:
+        with (
+            patch.object(agent_mod, "retrieve_vendors", return_value=[h1, h2, h3]),
+            patch.object(agent_mod, "classify_matches", return_value=match),
+        ):
+            out = search_vendors_tool_body(deps, "query")
+        assert isinstance(out, SearchVendorToolSuccess)
+        assert len(out.retrieval_top_k) == 3
+        assert len(out.candidates) == 1
+        assert out.candidates[0].vendor_id == "a"
+    finally:
+        deps.embedder.close()
+
+
+def test_search_vendors_tool_passes_score_tolerance_to_classify() -> None:
+    """Regression: runner forwards ``Settings.score_tolerance`` into ``classify_matches``."""
+    s = Settings(agent_instrument=False, score_tolerance=0.12)
+    client = QdrantClient(":memory:")
+    store = QdrantVectorStore(client, "t", s.embedding_vector_size)
+    emb = OllamaEmbedder(s.ollama_base_url, s.embedding_model)
+    deps = AgentDeps(settings=s, embedder=emb, store=store)
+    captured: dict = {}
+
+    def fake_classify(**kwargs: object) -> MatchResult:
+        captured.update(kwargs)
+        return MatchResult(kind=MatchKind.NONE, hits=[], message="none")
+
+    try:
+        with (
+            patch.object(agent_mod, "retrieve_vendors", return_value=[]),
+            patch.object(agent_mod, "classify_matches", side_effect=fake_classify),
+        ):
+            search_vendors_tool_body(deps, "query text")
+        assert captured.get("score_tolerance") == 0.12
+        assert captured.get("score_exact") == s.score_threshold_exact
+        assert captured.get("score_partial") == s.score_threshold_partial
+    finally:
+        deps.embedder.close()
+        client.close()
 
 
 def test_search_vendors_tool_body_runtime_error() -> None:

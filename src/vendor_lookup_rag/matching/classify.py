@@ -58,9 +58,24 @@ def _name_overlap(normalized_query: str, record: VendorRecord) -> bool:
     )
 
 
-def _hits_meeting_partial_floor(hits: list[SearchHit], score_partial: float) -> list[SearchHit]:
-    """Drop retrieval tail below the partial cosine bar (list stays score-sorted)."""
-    return [h for h in hits if h.score >= score_partial]
+def _hits_meeting_score_floor(hits: list[SearchHit], min_score: float) -> list[SearchHit]:
+    """Keep hits at or above ``min_score`` (list stays score-sorted)."""
+    return [h for h in hits if h.score >= min_score]
+
+
+def _canonical_search_hits(hits: list[SearchHit]) -> list[SearchHit]:
+    """
+    Re-parse hits through this module's ``SearchHit`` so ``MatchResult`` validation
+    succeeds after Streamlit reloads or mixed imports (``models`` vs ``models.records``).
+    """
+    return [SearchHit.model_validate(h.model_dump()) for h in hits]
+
+
+def _effective_floors(score_exact: float, score_partial: float, score_tolerance: float) -> tuple[float, float]:
+    """Cosine floors with optional tolerance band (clamped to [0, 1])."""
+    fe = max(0.0, score_exact - score_tolerance)
+    fp = max(0.0, score_partial - score_tolerance)
+    return min(fe, 1.0), min(fp, 1.0)
 
 
 def classify_matches(
@@ -69,22 +84,25 @@ def classify_matches(
     hits: list[SearchHit],
     score_exact: float,
     score_partial: float,
+    score_tolerance: float = 0.0,
 ) -> MatchResult:
     """
     Classify top retrieval hits using score thresholds and optional VAT/name equality.
 
     Expects ``normalized_query`` from ``normalize_text`` (same rules as retrieval).
 
-    Exact: top score >= score_exact and (VAT/company code in query or token overlap on
+    ``score_tolerance`` widens acceptance: effective exact floor is
+    ``max(0, score_exact - tolerance)``, partial floor ``max(0, score_partial - tolerance)``.
+
+    Exact: top score >= effective exact floor and (VAT/company code in query or token overlap on
     legal + secondary + company code fields).
 
-    Partial: top score >= score_partial.
+    Partial: top score >= effective partial floor (and exact rules did not apply).
 
     Otherwise none.
 
-    For **exact** and **partial**, returned ``hits`` only include rows with
-    ``score >= score_partial`` so the tool does not list weak tail matches. For **none**,
-    candidates are omitted (empty list).
+    Returned ``hits`` for exact/partial only include rows with
+    ``score >= effective partial floor``. For **none**, candidates are omitted (empty list).
     """
     if not hits:
         return MatchResult(
@@ -93,19 +111,23 @@ def classify_matches(
             message="No matching vendors found. Flag for manual verification.",
         )
 
+    hits = _canonical_search_hits(hits)
+
+    floor_exact, floor_partial = _effective_floors(score_exact, score_partial, score_tolerance)
+
     top = hits[0]
     query_compact = _query_compact(normalized_query)
     id_hit = _identifier_in_query(top.record, query_compact)
     name_overlap = _name_overlap(normalized_query, top.record)
-    at_partial = _hits_meeting_partial_floor(hits, score_partial)
+    at_partial = _hits_meeting_score_floor(hits, floor_partial)
 
-    if top.score >= score_exact and (id_hit or name_overlap):
+    if top.score >= floor_exact and (id_hit or name_overlap):
         return MatchResult(
             kind=MatchKind.EXACT,
             hits=at_partial,
             message="Exact match — displaying vendor details.",
         )
-    if top.score >= score_partial:
+    if top.score >= floor_partial:
         return MatchResult(
             kind=MatchKind.PARTIAL,
             hits=at_partial,

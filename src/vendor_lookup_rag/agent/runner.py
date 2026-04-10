@@ -6,8 +6,6 @@ import logging
 import time
 
 from vendor_lookup_rag.agent.deps import AgentDeps
-from vendor_lookup_rag.config import Settings
-
 _logger = logging.getLogger(__name__)
 from vendor_lookup_rag.matching import classify_matches
 from vendor_lookup_rag.models import (
@@ -22,8 +20,9 @@ from vendor_lookup_rag.retrieval import retrieve_vendors
 from vendor_lookup_rag.telemetry import emit_agent_tool_event
 
 SYSTEM_PROMPT = """You help invoice processors verify vendors against a master list.
-Always call the search_vendors tool with the user's vendor-related question or details.
-Summarize the tool result clearly: if exact match, confirm; if partial, list options; if none, say no match and suggest manual review."""
+Always call the search_vendors tool once with the user's vendor-related text (or a short paraphrase).
+Do not describe vendors, scores, or next steps in your assistant message — the application renders tool data.
+After the tool returns, reply with exactly the single word: OK."""
 
 
 def _hit_to_candidate(h: SearchHit) -> SearchVendorCandidate:
@@ -36,16 +35,11 @@ def _hit_to_candidate(h: SearchHit) -> SearchVendorCandidate:
         company_code=r.company_code,
         city=r.city,
         vat_id=r.vat_id,
+        address=r.address,
+        state=r.state,
+        postal_code=r.postal_code,
+        country=r.country,
     )
-
-
-def _retrieval_score_floor(settings: Settings) -> float:
-    """Do not retrieve or return candidates below the partial threshold (and respect RETRIEVAL_MIN_SCORE)."""
-    p = settings.score_threshold_partial
-    r = settings.retrieval_min_score
-    if r is not None:
-        return max(p, r)
-    return p
 
 
 def search_vendors_tool_body(deps: AgentDeps, user_query: str) -> SearchVendorToolResult:
@@ -57,12 +51,13 @@ def search_vendors_tool_body(deps: AgentDeps, user_query: str) -> SearchVendorTo
     t0 = time.perf_counter()
     settings = deps.settings
     try:
+        # Full top‑K (optional RETRIEVAL_MIN_SCORE only); partial threshold filters in classify + UI.
         hits = retrieve_vendors(
             user_query,
             embedder=deps.embedder,
             store=deps.store,
             settings=settings,
-            min_score=_retrieval_score_floor(settings),
+            min_score=settings.retrieval_min_score,
         )
     except RuntimeError as e:
         _logger.error("search_vendors tool retrieval failed: %s", e)
@@ -87,11 +82,13 @@ def search_vendors_tool_body(deps: AgentDeps, user_query: str) -> SearchVendorTo
         hits=hits,
         score_exact=settings.score_threshold_exact,
         score_partial=settings.score_threshold_partial,
+        score_tolerance=settings.score_tolerance,
     )
     out = SearchVendorToolSuccess(
         kind=match.kind.value,
         message=match.message,
         candidates=[_hit_to_candidate(h) for h in match.hits],
+        retrieval_top_k=[_hit_to_candidate(h) for h in hits],
     )
     emit_agent_tool_event(
         settings,

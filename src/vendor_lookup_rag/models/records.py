@@ -109,6 +109,10 @@ class SearchVendorCandidate(BaseModel):
     company_code: str | None = None
     city: str | None = None
     vat_id: str | None = None
+    address: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
+    country: str | None = None
 
 
 class SearchVendorToolSuccess(BaseModel):
@@ -118,6 +122,10 @@ class SearchVendorToolSuccess(BaseModel):
     kind: str
     message: str
     candidates: list[SearchVendorCandidate]
+    retrieval_top_k: list[SearchVendorCandidate] = Field(
+        default_factory=list,
+        description="All vector hits before partial-threshold filtering (diagnostics / agent trace).",
+    )
 
 
 class SearchVendorToolError(BaseModel):

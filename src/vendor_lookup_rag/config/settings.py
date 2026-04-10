@@ -79,6 +79,16 @@ class Settings(BaseSettings):
         le=1.0,
         description="Minimum top score for a partial match.",
     )
+    score_tolerance: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Expand acceptance: treat cosine as meeting exact/partial if score is within "
+            "this margin below the threshold (floors are max(0, threshold - tolerance))."
+        ),
+        alias="SCORE_TOLERANCE",
+    )
     vendor_csv_column_map_path: str | None = Field(
         default=None,
         description="Optional JSON file merging logical field → header lists (see README).",
