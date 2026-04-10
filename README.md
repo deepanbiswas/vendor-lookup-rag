@@ -28,6 +28,8 @@ pytest
 
 ## Local stack
 
+**Docker deployment (Qdrant + Streamlit app in containers, Ollama on the host via `scripts/`):** see [`deploy-and-run.md`](deploy-and-run.md).
+
 1. **Ollama** (host install, [ollama.com](https://ollama.com)) — recommended on Apple Silicon for Metal. Pull models, e.g. `ollama pull nomic-embed-text` and `ollama pull gemma4:e4b` (or `gemma4:26b` if you switch `CHAT_MODEL` in `.env`; tags must match `ollama list`).
 2. **Qdrant** — `docker compose up -d` in this directory (see `docker-compose.yml`, image `≥ 1.16.0`).
 3. **Environment** — `cp .env.example .env` and adjust URLs/models.

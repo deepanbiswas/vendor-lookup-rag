@@ -1,0 +1,31 @@
+# Git and local env
+.git
+.gitignore
+.env
+.env.*
+
+# Virtual environments
+.venv
+venv
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Tests and docs (not needed in runtime image)
+tests
+docs
+specs
+plan.md
+coverage.xml
+htmlcov
+
+# Large local datasets (mount at runtime if needed)
+data/*.csv
+
+# IDE
+.idea
+.vscode
+*.swp
