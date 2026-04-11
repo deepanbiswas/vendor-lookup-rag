@@ -40,11 +40,13 @@ Default URLs: Ollama `http://localhost:11434`, Qdrant `http://localhost:6333`, v
 
 ### Health checks and integration test env
 
-Before integration tests or heavy jobs, verify Qdrant and (if needed) Ollama with the same endpoints as [`src/vendor_lookup_rag/health/http.py`](src/vendor_lookup_rag/health/http.py) (Qdrant `GET …/readyz`, Ollama `GET …/api/tags`):
+Before integration tests or heavy jobs, verify Qdrant and (if needed) Ollama with the same endpoints as [`src/vendor_lookup_rag/health/http.py`](src/vendor_lookup_rag/health/http.py) (Qdrant `GET …/readyz`, Ollama `GET …/api/tags`). To also confirm the **vendor HTTP API** is up (after starting `vendor-api`), use **`with-api`**:
 
 ```bash
 ./scripts/verify_stack.sh
 ./scripts/verify_stack.sh qdrant-only   # same surface as the CI Qdrant integration job
+./scripts/verify_stack.sh with-api      # Qdrant + Ollama + GET …/v1/health (optional; needs vendor-api running)
+# Override API URL: VENDOR_LOOKUP_API_BASE_URL=http://localhost:8000 ./scripts/verify_stack.sh with-api
 ```
 
 Use the same variable names **locally and in CI** for pytest. `tests/conftest.py` defaults match `.env.example` when variables are unset.

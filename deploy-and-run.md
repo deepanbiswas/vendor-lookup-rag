@@ -156,7 +156,7 @@ Confirm Ollama is running on the host (`http://localhost:11434`). On Docker Desk
 - **API cannot reach Qdrant**  
 Ensure services are up: `docker compose ps`. The **`api`** service must use `QDRANT_URL=http://qdrant:6333` inside Compose (already set in `docker-compose.yml`).
 - **Streamlit cannot reach the vendor API**  
-Ensure the **`api`** container is healthy and port 8000 is published. Inside Compose, `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` must match the API service name.
+Ensure the **`api`** container is healthy and port 8000 is published. Inside Compose, `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` must match the API service name. The **`api`** service defines a Docker **healthcheck** against `GET /v1/health`; **`app`** waits for `api` to be healthy before starting. On the host, `./scripts/verify_stack.sh with-api` checks Qdrant, Ollama, and the vendor API (start `vendor-api` first).
 - **Large CSV path**  
 Adjust the `-v` host path and the path passed to `vendor-ingest` so they match the mount inside the container.
 - **Models missing**  

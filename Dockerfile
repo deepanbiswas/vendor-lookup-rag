@@ -1,4 +1,7 @@
-# Vendor Lookup RAG — Streamlit UI + ingestion CLI (vendor-ingest)
+# Vendor Lookup RAG — one image, multiple entrypoints:
+#   Default CMD: Streamlit UI (:8501).
+#   Override CMD: `vendor-api` for the FastAPI vendor lookup API (:8000). See docker-compose.yml (services `app` vs `api`).
+#   CLI: `vendor-ingest` for CSV → Qdrant (unchanged).
 # Python 3.12 matches requires-python >=3.11
 FROM python:3.12-slim-bookworm
 
