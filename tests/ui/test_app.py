@@ -1,28 +1,25 @@
-"""Streamlit AppTest smoke tests (mocked agent/deps)."""
+"""Streamlit AppTest smoke tests (mocked API client)."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
 import vendor_lookup_rag.ui.app as app_module
-from tests.fakes import FakeAgentRunResult, FakeAgentUsage, FakeVendorAgentRunner
-from vendor_lookup_rag.config import Settings
-
 _APP_PY = Path(__file__).resolve().parents[2] / "src" / "vendor_lookup_rag" / "ui" / "app.py"
 
 
 @pytest.fixture(autouse=True)
 def _clear_streamlit_caches() -> None:
-    app_module._deps.clear()
-    app_module._cached_services_health.clear()
+    app_module._cached_api_status.clear()
     yield
 
 
 def test_format_agent_run_trace_includes_usage() -> None:
+    from tests.fakes import FakeAgentRunResult, FakeAgentUsage
     from vendor_lookup_rag.agent.run_trace import format_agent_run_trace
 
     result = FakeAgentRunResult(
@@ -38,26 +35,21 @@ def test_format_agent_run_trace_includes_usage() -> None:
 
 
 def test_streamlit_main_renders_title_with_mocks() -> None:
-    mock_deps = MagicMock()
-    mock_deps.settings = Settings(agent_instrument=False)
-    mock_agent = FakeVendorAgentRunner(
-        FakeAgentRunResult(
-            output="Here is the answer.",
-            run_id="run-x",
-            usage_obj=FakeAgentUsage(input_tokens=1, output_tokens=2, total_tokens=3),
-            messages_json=b"[]",
-        ),
-    )
+    fake_status = {
+        "services": {
+            "ollama": {"ok": True, "detail": "reachable"},
+            "qdrant": {"ok": True, "detail": "ready"},
+        },
+        "chat_model": "gemma4:e4b",
+        "embedding_model": "nomic-embed-text",
+        "score_threshold_exact": 0.92,
+        "score_threshold_partial": 0.55,
+        "score_tolerance": 0.0,
+    }
 
     with (
-        patch.object(app_module, "_deps", return_value=mock_deps),
-        patch.object(app_module, "make_vendor_agent_runner", return_value=mock_agent),
-        patch.object(app_module, "configure_observability"),
-        patch.object(
-            app_module,
-            "_cached_services_health",
-            return_value={"ollama": (True, "reachable"), "qdrant": (True, "ready")},
-        ),
+        patch.object(app_module, "_cached_api_status", return_value=fake_status),
+        patch.object(app_module, "configure_app_logging"),
     ):
         at = AppTest.from_file(_APP_PY)
         at.run(timeout=10)

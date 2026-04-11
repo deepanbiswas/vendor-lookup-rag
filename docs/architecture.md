@@ -2,7 +2,7 @@
 
 ## 1. System overview
 
-The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Generation) pipeline. It orchestrates the flow of data from user input through a Streamlit UI to vector search and final LLM synthesis, ensuring fast and accurate vendor matching.
+The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Generation) pipeline. The **Streamlit** UI is a thin **HTTP client** to a **FastAPI** service that hosts the Pydantic AI agent, retrieval tool, and connections to **Ollama** and **Qdrant**. This keeps inference and vector search behind a stable REST surface while preserving the same chat behavior as the former in-process design.
 
 ## 2. Core components
 
@@ -14,101 +14,138 @@ The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Gener
 ### B. Vector store (Qdrant)
 
 * **Function:** Scalable similarity search engine.
-* **Action:** Stores preprocessed vendor records as vector embeddings. Executes high-speed nearest-neighbor searches based on the query vectors it receives from the retrieval tool.
+* **Action:** Stores preprocessed vendor records as vector embeddings. Executes high-speed nearest-neighbor searches based on the query vectors it receives from the retrieval tool (via the API process).
 
-### C. Vendor lookup agent (orchestration layer)
+### C. Vendor lookup REST API (FastAPI)
 
-* **Function:** The central orchestration layer, built using Pydantic AI.
-* **Action:** (1) Receives natural language queries containing vendor details from the user. (2) Determines if the input requires clarification or is ready for search. (3) Invokes the vendor retrieval tool. (4) Evaluates the search results (exact, partial, or no match). (5) Formats the final response for the user.
+* **Function:** Thin HTTP layer exposing chat and status endpoints.
+* **Action:** Builds `AgentDeps` (embedder + vector store), runs `VendorAgentRunner.run_sync`, and returns pre-rendered markdown and trace text. Exposes **GET `/v1/status`** (Ollama/Qdrant reachability plus model and threshold metadata for the UI sidebar).
 
-### D. Vendor retrieval tool (tool execution)
+### D. Vendor lookup agent (orchestration layer)
+
+* **Function:** The central orchestration layer, built using Pydantic AI (runs inside the API process).
+* **Action:** (1) Receives natural language queries containing vendor details. (2) Invokes the vendor retrieval tool. (3) Evaluates the search results (exact, partial, or no match). (4) Returns structured tool output; the API maps that to display strings.
+
+### E. Vendor retrieval tool (tool execution)
 
 * **Function:** The Python tool invoked by the Pydantic AI agent to interface with retrieval.
 * **Action:** Normalizes the user's input, converts it into an embedding via Ollama, and queries Qdrant to return the top *N* vendor matches.
 
-### E. LLM engine (Ollama chat model)
+### F. LLM engine (Ollama chat model)
 
 * **Function:** Local inference engine.
-* **Action:** Powers the reasoning capabilities of the agent, processing the context retrieved from Qdrant and generating the human-readable conversational output.
+* **Action:** Powers the agent (OpenAI-compatible HTTP to Ollama under the API process).
 
-### F. User interface (Streamlit)
+### G. User interface (Streamlit)
 
 * **Function:** The front-end conversational interface.
-* **Action:** Captures user queries using `st.chat_input` and renders the agent output using `st.chat_message`.
+* **Action:** Captures user queries using `st.chat_input`, calls **POST `/v1/chat`** for each turn, and renders responses using `st.chat_message`. Sidebar uses **GET `/v1/status`** (cached) instead of calling Ollama/Qdrant health checks directly.
 
 ## 3. High-level execution flow
 
 1. **Submit:** The user submits a vendor query through the Streamlit chat interface.
-2. **Process and route:** The Pydantic AI agent receives the input and invokes the vendor retrieval tool.
-3. **Embed and search:** The retrieval tool embeds the query and performs a vector similarity search on Qdrant.
-4. **Retrieve:** Qdrant returns the top *N* candidate records.
-5. **Analyze:** The agent analyzes the candidates alongside the original query using the chat LLM.
-6. **Respond:** The agent formats the result (exact, partial, or no match) and Streamlit renders the final vendor details or suggestions to the user.
+2. **REST call:** Streamlit sends the message to the vendor API (**POST `/v1/chat`**).
+3. **Process and route:** The Pydantic AI agent receives the input and invokes the vendor retrieval tool.
+4. **Embed and search:** The retrieval tool embeds the query and performs a vector similarity search on Qdrant.
+5. **Retrieve:** Qdrant returns the top *N* candidate records.
+6. **Analyze:** The agent runs the chat LLM (tool loop) against Ollama.
+7. **Respond:** The API returns display markdown and trace text; Streamlit renders the vendor details or suggestions to the user.
 
 ## 4. Solution architecture diagram
 
 ```mermaid
 graph TD
-    %% Styling Definitions
     classDef user fill:#003366,stroke:#333,stroke-width:2px,color:#fff;
     classDef ui fill:#ff4b4b,stroke:#333,stroke-width:2px,color:#fff;
+    classDef api fill:#607d8b,stroke:#333,stroke-width:2px,color:#fff;
     classDef agent fill:#4caf50,stroke:#333,stroke-width:2px,color:#fff;
     classDef tool fill:#2196f3,stroke:#333,stroke-width:2px,color:#fff;
     classDef llm fill:#9c27b0,stroke:#333,stroke-width:2px,color:#fff;
     classDef db fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff;
     classDef file fill:#eee,stroke:#333,stroke-width:1px,color:#1a1a1a,stroke-dasharray: 5 5;
 
-    %% User
     U[User - Invoice Processor]:::user
+    UI(Streamlit UI - HTTP client):::ui
+    REST[Vendor Lookup REST API - FastAPI]:::api
 
-    %% Streamlit UI
-    UI(Streamlit UI - Chat Interface):::ui
-
-    %% Orchestration Layer
-    subgraph Python Application Environment
-        A{Pydantic AI Agent Orchestrator}:::agent
-        T[Vendor Retrieval Tool - Python Function]:::tool
+    subgraph apiProc [API process]
+        A{Pydantic AI Agent}:::agent
+        T[Vendor Retrieval Tool]:::tool
     end
 
-    %% Local Inference Server
-    subgraph Local Inference - Apple Metal
-        O_LLM(Ollama - Gemma 4 Local LLM):::llm
-        O_EMB(Ollama - nomic-embed-text):::llm
+    subgraph LocalInference [Local inference]
+        O_LLM(Ollama - chat):::llm
+        O_EMB(Ollama - embeddings):::llm
     end
 
-    %% Database
-    DB[(Qdrant Vector Store - Self-Hosted)]:::db
+    DB[(Qdrant)]:::db
 
-    %% Offline Data Ingestion Pipeline
-    subgraph Data Ingestion
+    subgraph DataIngestion [Data ingestion]
         CSV_File([Vendor Master CSV]):::file
-        Ingest[CSV Importer - Python Script]:::tool
+        Ingest[CSV Importer CLI]:::tool
     end
 
-    %% Live RAG Workflow Connections
-    U -->|1. Submits vendor query| UI
-    UI -->|2. Passes user input| A
+    U -->|1. Submits query| UI
+    UI -->|2. POST /v1/chat JSON| REST
+    REST --> A
+    A -->|3. Tool call| T
+    T -->|4. POST /api/embed| O_EMB
+    O_EMB -.->|5. Vector| T
+    T -->|6. Search| DB
+    DB -.->|7. Top N| T
+    T -->|8. Tool result| A
+    A -->|9. Chat /v1| O_LLM
+    O_LLM -.->|10. Tokens| A
+    A -->|11. Response payload| REST
+    REST -->|12. JSON display + trace| UI
+    UI -->|13. Renders| U
 
-    A -->|3. Invokes as tool| T
-    T -->|4. Requests query embedding| O_EMB
-    O_EMB -.->|5. Returns vector| T
+    UI -.->|GET /v1/status| REST
 
-    T -->|6. Performs similarity search| DB
-    DB -.->|7. Returns Top N matches| T
+    CSV_File -.->|Normalize| Ingest
+    Ingest -.->|Embeddings| O_EMB
+    Ingest -.->|Upsert| DB
 
-    T -->|8. Returns search results| A
-
-    A -->|9. Prompts query and top matches| O_LLM
-    O_LLM -.->|10. Generates response| A
-
-    A -->|11. Formats and returns response| UI
-    UI -->|12. Displays matched vendors| U
-
-    %% Ingestion Workflow Connections
-    CSV_File -.->|Preprocess and Normalize| Ingest
-    Ingest -.->|Generate Document Embeddings| O_EMB
-    Ingest -.->|Load Vectors and Payload| DB
-
-    %% Link styles (white strokes for visibility on dark backgrounds)
     linkStyle default stroke:#fff,stroke-width:1.5px;
 ```
+
+## 5. Sequence diagram (user query)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant St as Streamlit
+    participant Api as VendorAPI
+    participant Agent as PydanticAgent
+    participant Tool as search_vendors
+    participant Oe as Ollama_embed
+    participant Qd as Qdrant
+    participant Oc as Ollama_chat
+
+    User->>St: Enter vendor text
+    St->>St: Queue prompt and rerun
+    St->>Api: POST /v1/chat
+    Api->>Agent: run_sync(message, deps)
+    Agent->>Oc: HTTP OpenAI-compatible chat
+    Agent->>Tool: search_vendors(user_query)
+    Tool->>Oe: HTTP POST /api/embed
+    Oe-->>Tool: embedding
+    Tool->>Qd: vector search HTTP
+    Qd-->>Tool: top-K records
+    Tool-->>Agent: SearchVendorToolResult
+    Oc-->>Agent: assistant message
+    Agent-->>Api: run result
+    Api->>Api: assistant_markdown_from_run + format_agent_run_trace
+    Api-->>St: JSON display_markdown, trace_text
+    St-->>User: Render markdown and optional trace
+```
+
+## 6. Protocol summary
+
+| Path | Mechanism |
+|------|-----------|
+| Streamlit to API | HTTP REST (JSON), `httpx` client |
+| API to Ollama | HTTP (embed + OpenAI-compatible chat) |
+| API to Qdrant | HTTP via `qdrant-client` |
+| Ingestion CLI to Ollama/Qdrant | Same HTTP stacks as above (no Streamlit) |

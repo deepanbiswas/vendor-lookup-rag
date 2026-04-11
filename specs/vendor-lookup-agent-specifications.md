@@ -28,7 +28,7 @@ This project automates the verification of vendor details extracted from invoice
 * **Embedding Model:** `nomic-embed-text` or `mxbai-embed-large` via Ollama.
 * **Vector Database:** Qdrant (Self-hosted via Docker).
 * **Orchestration Framework:** Pydantic AI (Code-first Python agent framework).
-* **User Interface:** Streamlit (Python-native frontend).
+* **User Interface:** Streamlit (Python-native frontend) as an HTTP client to a thin FastAPI REST layer that runs the agent and tools.
 * **Caching Layer (Optional):** Redis (Self-hosted via Docker).
 * **Containerization:** Docker & Docker Compose.
 * **Programming Language:** Python 3.11+.

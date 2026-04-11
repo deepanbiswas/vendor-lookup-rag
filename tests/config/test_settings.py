@@ -15,6 +15,7 @@ def test_settings_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.delenv("SCORE_TOLERANCE", raising=False)
     monkeypatch.chdir(tmp_path)
     s = Settings()
+    assert s.vendor_lookup_api_base_url == "http://127.0.0.1:8000"
     assert s.ollama_base_url == "http://localhost:11434"
     assert s.qdrant_url == "http://localhost:6333"
     assert s.qdrant_collection == "vendor_master"
@@ -45,7 +46,12 @@ def test_ollama_openai_api_base() -> None:
 
 
 def test_settings_strips_trailing_slash_on_urls() -> None:
-    s = Settings(ollama_base_url="http://localhost:11434/", qdrant_url="http://qdrant:6333/")
+    s = Settings(
+        vendor_lookup_api_base_url="http://api:8000/",
+        ollama_base_url="http://localhost:11434/",
+        qdrant_url="http://qdrant:6333/",
+    )
+    assert s.vendor_lookup_api_base_url == "http://api:8000"
     assert s.ollama_base_url == "http://localhost:11434"
     assert s.qdrant_url == "http://qdrant:6333"
 

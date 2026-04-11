@@ -1,4 +1,4 @@
-# Qdrant + Streamlit app. Ollama runs on the host (install via scripts/install-ollama-*).
+# Qdrant + REST API + Streamlit UI. Ollama runs on the host (install via scripts/install-ollama-*).
 # Compose file format: no top-level `version` key (obsolete in Docker Compose V2+).
 
 services:
@@ -12,6 +12,28 @@ services:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vendor-lookup-rag:local
+    container_name: vendor_lookup_api
+    ports:
+      - "8000:8000"
+    command: ["vendor-api"]
+    env_file:
+      - .env
+    environment:
+      VENDOR_LOOKUP_API_HOST: "0.0.0.0"
+      VENDOR_LOOKUP_API_PORT: "8000"
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    depends_on:
+      - qdrant
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -20,17 +42,13 @@ services:
     container_name: vendor_lookup_app
     ports:
       - "8501:8501"
+    command: ["streamlit", "run", "src/vendor_lookup_rag/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
     env_file:
       - .env
     environment:
-      # Reach Qdrant on the Compose network (overrides localhost in .env)
-      QDRANT_URL: http://qdrant:6333
-      # Ollama on the host (Docker Desktop Mac/Windows provides host.docker.internal)
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      VENDOR_LOOKUP_API_BASE_URL: http://api:8000
     depends_on:
-      - qdrant
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - api
     restart: unless-stopped
 
 volumes:

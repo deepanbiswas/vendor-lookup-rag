@@ -14,7 +14,7 @@ This is a **standalone** Git repository (clone it on its own; it is no longer un
 | `docs/` | Architecture and security notes |
 | `plan.md` | Implementation iterations (tracking) |
 
-**Source subpackages (aligned with implementation iterations):** `config/` (settings), `models/` (domain + tool payloads), `csv/` (mapping + loader), `normalization/`, `matching/`, `embedding/` (Ollama), `vector/` (Qdrant store), `retrieval/`, `telemetry/`, `ingestion/` (pipeline + CLI), `agent/` (Pydantic AI), `observability/`, `health/`, `ui/` (Streamlit). The top-level `app.py` re-exports the UI entry for `streamlit run src/vendor_lookup_rag/app.py`.
+**Source subpackages (aligned with implementation iterations):** `config/` (settings), `models/` (domain + tool payloads), `csv/` (mapping + loader), `normalization/`, `matching/`, `embedding/` (Ollama), `vector/` (Qdrant store), `retrieval/`, `telemetry/`, `ingestion/` (pipeline + CLI), `agent/` (Pydantic AI), `api/` (FastAPI REST layer), `observability/`, `health/`, `ui/` (Streamlit client). The top-level `app.py` re-exports the UI entry for `streamlit run src/vendor_lookup_rag/app.py`.
 
 ## Quick start (development)
 
@@ -28,7 +28,7 @@ pytest
 
 ## Local stack
 
-**Docker deployment (Qdrant + Streamlit app in containers, Ollama on the host via `scripts/`):** see [`deploy-and-run.md`](deploy-and-run.md).
+**Docker deployment (Qdrant + vendor API + Streamlit in containers, Ollama on the host via `scripts/`):** see [`deploy-and-run.md`](deploy-and-run.md).
 
 1. **Ollama** (host install, [ollama.com](https://ollama.com)) — recommended on Apple Silicon for Metal. Pull models, e.g. `ollama pull nomic-embed-text` and `ollama pull gemma4:e4b` (or `gemma4:26b` if you switch `CHAT_MODEL` in `.env`; tags must match `ollama list`).
 2. **Qdrant** — `docker compose up -d` in this directory (see `docker-compose.yml`, image `≥ 1.16.0`).
@@ -60,16 +60,24 @@ vendor-ingest path/to/vendor_master.csv
 # Progress prints to stderr by default; use -q to silence. Interval: --progress-every 1000
 ```
 
-## Chat UI (Streamlit)
+## REST API and chat UI (Streamlit)
+
+The Streamlit app is an HTTP client to the vendor lookup API. Run **Ollama** and **Qdrant** first, then start the API, then Streamlit.
 
 From this directory (with the venv active and `pip install -e ".[dev]"` done):
 
 ```bash
+# Terminal 1 — REST API (default http://127.0.0.1:8000)
+vendor-api
+# or: python -m vendor_lookup_rag.api
+# In containers, set VENDOR_LOOKUP_API_HOST=0.0.0.0
+
+# Terminal 2 — Streamlit (uses VENDOR_LOOKUP_API_BASE_URL, default http://127.0.0.1:8000)
 streamlit run src/vendor_lookup_rag/app.py
 # or: streamlit run src/vendor_lookup_rag/ui/app.py
 ```
 
-`app.py` at the package root delegates to `ui/app.py`.
+`app.py` at the package root delegates to `ui/app.py`. **Docker Compose** starts the `api` service on port 8000 and `app` (Streamlit) with `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` — see [`deploy-and-run.md`](deploy-and-run.md).
 
 ## Tests
 

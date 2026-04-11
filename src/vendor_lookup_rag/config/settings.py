@@ -26,6 +26,11 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
+    vendor_lookup_api_base_url: str = Field(
+        default="http://127.0.0.1:8000",
+        description="Base URL of the vendor lookup REST API (Streamlit UI client only).",
+        alias="VENDOR_LOOKUP_API_BASE_URL",
+    )
     ollama_base_url: str = Field(
         default="http://localhost:11434",
         description="Base URL for the Ollama HTTP API.",
@@ -155,7 +160,7 @@ class Settings(BaseSettings):
             return "WARNING"
         return v
 
-    @field_validator("ollama_base_url", "qdrant_url")
+    @field_validator("vendor_lookup_api_base_url", "ollama_base_url", "qdrant_url")
     @classmethod
     def strip_trailing_slash(cls, v: str) -> str:
         return v.rstrip("/")

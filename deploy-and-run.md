@@ -1,14 +1,15 @@
 # Deploy and run (macOS and Windows)
 
-This project runs **Qdrant** and the **Python Streamlit app** in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific).
+This project runs **Qdrant**, the **FastAPI vendor API**, and the **Streamlit** UI in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific).
 
 | Component | How it runs |
 |-----------|-------------|
 | Qdrant | Docker (`docker-compose.yml` → service `qdrant`) |
-| Streamlit app | Docker (`docker-compose.yml` → service `app`) |
+| Vendor REST API | Docker (`docker-compose.yml` → service `api`, port **8000**, command `vendor-api`) |
+| Streamlit app | Docker (`docker-compose.yml` → service `app`, port **8501**) |
 | Ollama | Host — install with `scripts/install-ollama-macos.sh` or `scripts/install-ollama-windows.ps1` |
 
-The Compose file sets `QDRANT_URL=http://qdrant:6333` and `OLLAMA_BASE_URL=http://host.docker.internal:11434` for the app container so it talks to Qdrant on the Docker network and Ollama on your machine.
+The Compose file sets `QDRANT_URL` and `OLLAMA_BASE_URL` on the **`api`** service so the API talks to Qdrant on the Docker network and Ollama on your machine. The **`app`** (Streamlit) service sets `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` so the UI only calls the REST API.
 
 ---
 
@@ -41,9 +42,9 @@ If you do not use Homebrew, install Ollama from [ollama.com](https://ollama.com)
 cp .env.example .env
 ```
 
-Edit `.env` if needed (models, thresholds). For **Docker Compose**, you normally **do not** need to change `QDRANT_URL` or `OLLAMA_BASE_URL` in `.env` — `docker-compose.yml` overrides them for the `app` service.
+Edit `.env` if needed (models, thresholds). For **Docker Compose**, you normally **do not** need to change `QDRANT_URL` or `OLLAMA_BASE_URL` in `.env` — `docker-compose.yml` overrides them for the **`api`** service. The Streamlit service does not require those variables at runtime (it uses `VENDOR_LOOKUP_API_BASE_URL` from Compose).
 
-### 3. Start Qdrant and the app
+### 3. Start Qdrant, API, and Streamlit
 
 From the repository root:
 
@@ -52,6 +53,7 @@ docker compose up --build -d
 ```
 
 - Qdrant HTTP API: `http://localhost:6333`
+- Vendor REST API: `http://localhost:8000` (OpenAPI docs: `/docs`)
 - Streamlit UI: `http://localhost:8501`
 
 ### 4. Ingest vendor CSV (one-off)
@@ -108,9 +110,9 @@ Ensure the Ollama app is running (system tray) so it listens on `http://localhos
 copy .env.example .env
 ```
 
-Edit `.env` as needed. Compose still overrides `QDRANT_URL` and `OLLAMA_BASE_URL` for the `app` container.
+Edit `.env` as needed. Compose overrides `QDRANT_URL` and `OLLAMA_BASE_URL` for the **`api`** container and sets `VENDOR_LOOKUP_API_BASE_URL` for Streamlit.
 
-### 3. Start Qdrant and the app
+### 3. Start Qdrant, API, and Streamlit
 
 From the repository root in PowerShell:
 
@@ -119,6 +121,7 @@ docker compose up --build -d
 ```
 
 - Qdrant: `http://localhost:6333`
+- Vendor API: `http://localhost:8000`
 - Streamlit: `http://localhost:8501`
 
 ### 4. Ingest vendor CSV (one-off)
@@ -147,11 +150,14 @@ docker compose down
 
 ## Troubleshooting
 
-- **App cannot reach Ollama**  
-  Confirm Ollama is running on the host (`http://localhost:11434`). On Docker Desktop for Mac/Windows, `host.docker.internal` should resolve inside containers. On **Linux** hosts, `extra_hosts: host.docker.internal:host-gateway` in `docker-compose.yml` helps; ensure Docker supports it.
+- **API cannot reach Ollama**  
+  Confirm Ollama is running on the host (`http://localhost:11434`). On Docker Desktop for Mac/Windows, `host.docker.internal` should resolve inside the **`api`** container. On **Linux** hosts, `extra_hosts: host.docker.internal:host-gateway` in `docker-compose.yml` helps; ensure Docker supports it.
 
-- **App cannot reach Qdrant**  
-  Ensure both services are up: `docker compose ps`. The app must use `QDRANT_URL=http://qdrant:6333` inside Compose (already set in `docker-compose.yml`).
+- **API cannot reach Qdrant**  
+  Ensure services are up: `docker compose ps`. The **`api`** service must use `QDRANT_URL=http://qdrant:6333` inside Compose (already set in `docker-compose.yml`).
+
+- **Streamlit cannot reach the vendor API**  
+  Ensure the **`api`** container is healthy and port 8000 is published. Inside Compose, `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` must match the API service name.
 
 - **Large CSV path**  
   Adjust the `-v` host path and the path passed to `vendor-ingest` so they match the mount inside the container.

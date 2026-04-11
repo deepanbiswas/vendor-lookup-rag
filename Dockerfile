@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+EXPOSE 8000
 EXPOSE 8501
 
-# Bind on all interfaces so Docker port mapping works
+# Default: Streamlit UI. Override with e.g. `vendor-api` for the REST API service (see docker-compose.yml).
 CMD ["streamlit", "run", "src/vendor_lookup_rag/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

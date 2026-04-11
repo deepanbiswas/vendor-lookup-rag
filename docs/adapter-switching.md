@@ -42,7 +42,7 @@ class PgVectorStore:
 ```
 
 3. **Wire** the adapter where the app builds dependencies:
-   - Streamlit: replace `QdrantVectorStore(...)` in `_deps()` with your class (and connection params from `Settings`).
+   - REST API: replace `QdrantVectorStore(...)` in `open_vector_store` (used by [`api/deps.py`](../src/vendor_lookup_rag/api/deps.py) `build_production_runtime`) with your class (and connection params from `Settings`).
    - CLI ingest: pass `store=YourStore(...)` into `ingest_vendor_csv`, or change the default branch in [`ingestion/pipeline.py`](../src/vendor_lookup_rag/ingestion/pipeline.py) when `store` is omitted.
 4. Extend [`Settings`](../src/vendor_lookup_rag/config/settings.py) with URLs, table/collection names, credentials, and optionally a `vector_backend: Literal["qdrant", "pgvector"]` to select an implementation in one factory function.
 
