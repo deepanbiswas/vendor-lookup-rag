@@ -56,7 +56,12 @@ services:
     env_file:
       - .env
     environment:
+      # Override .env (localhost) so in-container tools (Streamlit, vendor-ingest) reach Qdrant/Ollama
       VENDOR_LOOKUP_API_BASE_URL: http://api:8000
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       api:
         condition: service_healthy

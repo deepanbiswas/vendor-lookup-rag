@@ -43,7 +43,7 @@ If you do not use Homebrew, install Ollama from [ollama.com](https://ollama.com)
 cp .env.example .env
 ```
 
-Edit `.env` if needed (models, thresholds). For **Docker Compose**, you normally **do not** need to change `QDRANT_URL` or `OLLAMA_BASE_URL` in `.env` — `docker-compose.yml` overrides them for the **`api`** service. The Streamlit service does not require those variables at runtime (it uses `VENDOR_LOOKUP_API_BASE_URL` from Compose).
+Edit `.env` if needed (models, thresholds). For **Docker Compose**, you normally **do not** need to change `QDRANT_URL` or `OLLAMA_BASE_URL` in `.env` — `docker-compose.yml` overrides them for both the **`api`** and **`app`** services (`http://qdrant:6333` and `http://host.docker.internal:11434`) so the API, **Streamlit**, and **`vendor-ingest` run via `docker compose run app …`** resolve Qdrant and Ollama correctly (`.env` defaults use `localhost`, which is wrong inside containers). The UI still calls the vendor API via `VENDOR_LOOKUP_API_BASE_URL` from Compose.
 
 ### 3. Start Qdrant, API, and Streamlit
 
@@ -111,7 +111,7 @@ Ensure the Ollama app is running (system tray) so it listens on `http://localhos
 copy .env.example .env
 ```
 
-Edit `.env` as needed. Compose overrides `QDRANT_URL` and `OLLAMA_BASE_URL` for the **`api`** container and sets `VENDOR_LOOKUP_API_BASE_URL` for Streamlit.
+Edit `.env` as needed. Compose overrides `QDRANT_URL` and `OLLAMA_BASE_URL` for **`api`** and **`app`** (same as macOS) and sets `VENDOR_LOOKUP_API_BASE_URL` for the Streamlit container.
 
 ### 3. Start Qdrant, API, and Streamlit
 
