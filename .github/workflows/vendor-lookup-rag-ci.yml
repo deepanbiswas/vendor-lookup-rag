@@ -33,8 +33,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Only Qdrant is required for pytest integration (not api/app). Full compose uses
+      # env_file: .env for api/app; that file is gitignored — starting only `qdrant` avoids needing it in CI.
       - name: Start Qdrant
-        run: docker compose up -d
+        run: docker compose up -d qdrant
 
       - name: Wait for Qdrant
         run: |
