@@ -4,9 +4,9 @@ This project uses **hexagonal-style ports** under [`src/vendor_lookup_rag/ports/
 
 | Role | Port | Default adapter | Typical composition sites |
 |------|------|-----------------|---------------------------|
-| Vector index | `VectorStore` | `QdrantVectorStore` | [`ui/app.py`](../src/vendor_lookup_rag/ui/app.py), [`ingestion/pipeline.py`](../src/vendor_lookup_rag/ingestion/pipeline.py) |
+| Vector index | `VectorStore` | `QdrantVectorStore` | [`api/deps.py`](../src/vendor_lookup_rag/api/deps.py) `build_production_runtime` (via `open_vector_store`), [`ingestion/pipeline.py`](../src/vendor_lookup_rag/ingestion/pipeline.py) |
 | Text embeddings | `TextEmbedder` | `OllamaEmbedder` | Same + `AgentDeps` |
-| Chat agent | `VendorAgentRunner` | `PydanticAiVendorAgent` via `build_vendor_agent()` | [`ui/app.py`](../src/vendor_lookup_rag/ui/app.py), re-exported from [`agent/__init__.py`](../src/vendor_lookup_rag/agent/__init__.py) |
+| Chat agent | `VendorAgentRunner` | `PydanticAiVendorAgent` via `build_vendor_agent()` | [`api/deps.py`](../src/vendor_lookup_rag/api/deps.py) `make_vendor_agent_runner`, re-exported from [`agent/__init__.py`](../src/vendor_lookup_rag/agent/__init__.py) |
 
 Unit tests use **port fakes** in [`tests/fakes/`](../tests/fakes/) (`FakeVectorStore`, `FakeTextEmbedder`, `FakeVendorAgentRunner`).
 
@@ -91,9 +91,9 @@ class OpenAiTextEmbedder:
 
 1. Implement [`VendorAgentRunner`](../src/vendor_lookup_rag/ports/agent_runner.py) for your `AgentDeps` type: a `run_sync(user_message, *, deps=...)` method returning a result object the UI can use.
 
-2. The Streamlit UI expects:
+2. The **REST API** maps the run result with [`assistant_markdown_from_run`](../src/vendor_lookup_rag/ui/chat_display.py) and [`format_agent_run_trace`](../src/vendor_lookup_rag/agent/run_trace.py). Preserve:
    - `result.output` (final assistant string)
-   - Optional: `run_id`, `usage()`, `new_messages_json()`, `_traceparent(...)` for [`format_agent_run_trace`](../src/vendor_lookup_rag/agent/run_trace.py). Either preserve that shape or update the UI/trace helper.
+   - Optional: `run_id`, `usage()`, `new_messages_json()`, `_traceparent(...)` for traces. Either keep that shape or update those formatters and the API response fields.
 
 ```python
 # adapters/langgraph_runner/runner.py (illustrative sketch)
@@ -108,7 +108,7 @@ class LangGraphVendorRunner:
         return MyRunResult(output=text, ...)
 ```
 
-3. Export a `build_vendor_agent(settings) -> VendorAgentRunner` (or rename) from [`agent/__init__.py`](../src/vendor_lookup_rag/agent/__init__.py) and point the UI at it.
+3. Export a `build_vendor_agent(settings) -> VendorAgentRunner` (or rename) from [`agent/__init__.py`](../src/vendor_lookup_rag/agent/__init__.py) and wire it through `make_vendor_agent_runner` in [`adapters/factory.py`](../src/vendor_lookup_rag/adapters/factory.py) so the **API** process picks it up.
 
 4. **Observability:** [`logfire.instrument_pydantic_ai()`](../src/vendor_lookup_rag/observability/logfire.py) applies only to Pydantic AI; other frameworks need their own instrumentation.
 
@@ -126,9 +126,9 @@ class LangGraphVendorRunner:
 
 Central wiring lives in [`adapters/factory.py`](../src/vendor_lookup_rag/adapters/factory.py):
 
-- **`open_vector_store(settings, *, client=None, check_compatibility=True) -> VectorStoreHandle`** — returns `store`, `qdrant_client`, and `own_client` for correct `close()` behavior in ingest. Used by the Streamlit UI (with `check_compatibility=False` to avoid startup warnings) and by [`ingest_vendor_csv`](../src/vendor_lookup_rag/ingestion/pipeline.py) when no custom `store` is injected.
-- **`make_text_embedder(settings) -> TextEmbedder`** — used by the UI and ingest when no custom embedder is passed.
-- **`make_vendor_agent_runner(settings) -> PydanticAiVendorAgent`** — used by the UI instead of calling `build_vendor_agent` directly.
+- **`open_vector_store(settings, *, client=None, check_compatibility=True) -> VectorStoreHandle`** — returns `store`, `qdrant_client`, and `own_client` for correct `close()` behavior in ingest. Used by [`api/deps.py`](../src/vendor_lookup_rag/api/deps.py) `build_production_runtime` (with `check_compatibility=False`) and by [`ingest_vendor_csv`](../src/vendor_lookup_rag/ingestion/pipeline.py) when no custom `store` is injected.
+- **`make_text_embedder(settings) -> TextEmbedder`** — used by the API runtime and ingest when no custom embedder is passed.
+- **`make_vendor_agent_runner(settings) -> PydanticAiVendorAgent`** — used by the API instead of calling `build_vendor_agent` directly.
 
 **Adding another backend** (e.g. pgvector, OpenAI embeddings, LangGraph):
 
@@ -174,7 +174,7 @@ Central wiring lives in [`adapters/factory.py`](../src/vendor_lookup_rag/adapter
 
 ## Application logging (stdout + optional file)
 
-Structured logs use the `vendor_lookup_rag` logger family. Call [`configure_app_logging`](../src/vendor_lookup_rag/observability/app_logging.py) once at process entry (Streamlit `main`, `vendor-ingest` CLI).
+Structured logs use the `vendor_lookup_rag` logger family. Call [`configure_app_logging`](../src/vendor_lookup_rag/observability/app_logging.py) once at process entry (Streamlit `main`, FastAPI lifespan / `vendor-api`, `vendor-ingest` CLI).
 
 - **`VENDOR_LOOKUP_LOG_LEVEL`**: `ERROR` (default), `WARNING`, `INFO`, `DEBUG` (`WARN` is accepted as `WARNING`). Applies to **both** stdout and file handlers.
 - **`VENDOR_LOOKUP_LOG_DIR`**: If set, writes a rotating `vendor_lookup_rag.log` under that directory; stdout logging is always enabled.

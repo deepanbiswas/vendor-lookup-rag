@@ -13,3 +13,9 @@ This document outlines recent critical security vulnerabilities associated with 
 ## 3. Qdrant
 * **Vulnerability:** **CVE-2026-25628** (High) – A path traversal vulnerability existed in the `/logger` endpoint. It allowed attackers with minimal read-only access to append arbitrary content to files on the target system by exploiting an attacker-controlled log file path parameter, potentially leading to configuration tampering or persistence mechanisms. 
 * **Resolution:** Ensure the project uses **version 1.16.0 or higher**. The patch implements proper access control and restricts the ability to specify log file paths to the configuration file, preventing runtime manipulation through the API.
+
+## 4. Vendor HTTP API (FastAPI)
+
+* **Surface:** The chat UI talks to a **FastAPI** application (`vendor-api` / `python -m vendor_lookup_rag.api`) over JSON REST (`/v1/chat`, `/v1/health`, `/v1/status`). The dependency stack pins **FastAPI** in [`pyproject.toml`](../pyproject.toml); keep it current with your security process.
+* **Deployment posture:** Defaults bind the API to **127.0.0.1** for local development (`VENDOR_LOOKUP_API_HOST` overrides this, e.g. `0.0.0.0` in Docker). There is **no authentication** on these endpoints in the reference setup—they are intended for trusted local or private networks. If you expose the API beyond localhost, add network controls (reverse proxy, mTLS, or application auth) appropriate to your threat model.
+* **Related:** Streamlit’s own CVE discussion above applies to the UI process; the API process does not serve Streamlit’s file APIs.

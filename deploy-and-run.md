@@ -1,13 +1,14 @@
 # Deploy and run (macOS and Windows)
 
-This project runs **Qdrant**, the **FastAPI vendor API**, and the **Streamlit** UI in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific).
+This project runs **Qdrant**, the **FastAPI vendor API**, and the **Streamlit** UI in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific). For local development run order, health scripts, and integration-test environment variables (parity with CI), see the **[README.md](README.md)** “Local stack” and “Health checks and integration test env” sections.
 
-| Component | How it runs |
-|-----------|-------------|
-| Qdrant | Docker (`docker-compose.yml` → service `qdrant`) |
-| Vendor REST API | Docker (`docker-compose.yml` → service `api`, port **8000**, command `vendor-api`) |
-| Streamlit app | Docker (`docker-compose.yml` → service `app`, port **8501**) |
-| Ollama | Host — install with `scripts/install-ollama-macos.sh` or `scripts/install-ollama-windows.ps1` |
+| Component       | How it runs                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| Qdrant          | Docker (`docker-compose.yml` → service `qdrant`)                                              |
+| Vendor REST API | Docker (`docker-compose.yml` → service `api`, port **8000**, command `vendor-api`)            |
+| Streamlit app   | Docker (`docker-compose.yml` → service `app`, port **8501**)                                  |
+| Ollama          | Host — install with `scripts/install-ollama-macos.sh` or `scripts/install-ollama-windows.ps1` |
+
 
 The Compose file sets `QDRANT_URL` and `OLLAMA_BASE_URL` on the **`api`** service so the API talks to Qdrant on the Docker network and Ollama on your machine. The **`app`** (Streamlit) service sets `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` so the UI only calls the REST API.
 
@@ -151,19 +152,15 @@ docker compose down
 ## Troubleshooting
 
 - **API cannot reach Ollama**  
-  Confirm Ollama is running on the host (`http://localhost:11434`). On Docker Desktop for Mac/Windows, `host.docker.internal` should resolve inside the **`api`** container. On **Linux** hosts, `extra_hosts: host.docker.internal:host-gateway` in `docker-compose.yml` helps; ensure Docker supports it.
-
+Confirm Ollama is running on the host (`http://localhost:11434`). On Docker Desktop for Mac/Windows, `host.docker.internal` should resolve inside the **`api`** container. On **Linux** hosts, `extra_hosts: host.docker.internal:host-gateway` in `docker-compose.yml` helps; ensure Docker supports it.
 - **API cannot reach Qdrant**  
-  Ensure services are up: `docker compose ps`. The **`api`** service must use `QDRANT_URL=http://qdrant:6333` inside Compose (already set in `docker-compose.yml`).
-
+Ensure services are up: `docker compose ps`. The **`api`** service must use `QDRANT_URL=http://qdrant:6333` inside Compose (already set in `docker-compose.yml`).
 - **Streamlit cannot reach the vendor API**  
-  Ensure the **`api`** container is healthy and port 8000 is published. Inside Compose, `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` must match the API service name.
-
+Ensure the **`api`** container is healthy and port 8000 is published. Inside Compose, `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` must match the API service name.
 - **Large CSV path**  
-  Adjust the `-v` host path and the path passed to `vendor-ingest` so they match the mount inside the container.
-
+Adjust the `-v` host path and the path passed to `vendor-ingest` so they match the mount inside the container.
 - **Models missing**  
-  Run `ollama list` on the host and compare names/tags to `EMBEDDING_MODEL` and `CHAT_MODEL` in `.env`.
+Run `ollama list` on the host and compare names/tags to `EMBEDDING_MODEL` and `CHAT_MODEL` in `.env`.
 
 ---
 

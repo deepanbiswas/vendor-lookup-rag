@@ -4,7 +4,7 @@ TDD-first delivery aligned with [specs/vendor-lookup-agent-specifications.md](sp
 
 ## Principles
 
-- **Progressive infra:** Ollama on the host (Metal) for local dev; Qdrant via Docker Compose when indexing/searching.
+- **Progressive infra:** Ollama on the host (Metal) for local dev; Qdrant via Docker Compose when indexing/searching; **vendor FastAPI** (`vendor-api`) serves the agent; **Streamlit** is an HTTP client only.
 - **Tests:** Default `pytest` runs **unit tests** (no services). Markers: `integration`, `requires_ollama` for optional real-service checks.
 - **Security baselines:** See [docs/security-notes.md](docs/security-notes.md) (pinned in `pyproject.toml`).
 
@@ -21,18 +21,19 @@ TDD-first delivery aligned with [specs/vendor-lookup-agent-specifications.md](sp
 | 7 | Ingestion + CLI | `ingest_vendor_csv`, `vendor-ingest` script; mocked test | [x] |
 | 8 | Retrieval | `retrieve_vendors()`; unit tests with mocks | [x] |
 | 9 | Pydantic AI agent | `build_vendor_agent()` + `search_vendors` tool | [x] |
-| 10 | Streamlit UI | `streamlit run src/vendor_lookup_rag/app.py` (from repo root) | [x] |
-| 11 | Compose + CI + runbook | `.env.example`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml), README | [x] |
+| 10 | Streamlit + vendor REST API | `vendor_lookup_rag.api` (FastAPI); Streamlit calls `VENDOR_LOOKUP_API_BASE_URL`; `streamlit run …` | [x] |
+| 11 | Compose + CI + runbook | `.env.example`, `api` + `app` services, [`.github/workflows/vendor-lookup-rag-ci.yml`](.github/workflows/vendor-lookup-rag-ci.yml), README | [x] |
 
 ## Commands (cheat sheet)
 
 ```bash
-docker compose up -d          # Qdrant
+docker compose up -d          # Qdrant (+ api + app when using full compose)
 cp .env.example .env            # adjust URLs/models
 pip install -e ".[dev]"
 pytest
 vendor-ingest path/to/vendors.csv
-streamlit run src/vendor_lookup_rag/app.py
+vendor-api                    # REST API (default :8000); or: python -m vendor_lookup_rag.api
+streamlit run src/vendor_lookup_rag/app.py   # set VENDOR_LOOKUP_API_BASE_URL if not default
 ```
 
 ## CSV format

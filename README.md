@@ -6,13 +6,15 @@ This is a **standalone** Git repository (clone it on its own; it is no longer un
 
 ## Layout
 
-| Path | Purpose |
-|------|---------|
-| `src/vendor_lookup_rag/` | Application package (subpackages by concern; see below) |
-| `tests/` | Pytest, grouped by area (`config/`, `csv/`, `agent/`, `ingestion/`, …) |
-| `specs/` | Specs and `@pytest.mark.spec(...)` links |
-| `docs/` | Architecture and security notes |
-| `plan.md` | Implementation iterations (tracking) |
+
+| Path                     | Purpose                                                                |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `src/vendor_lookup_rag/` | Application package (subpackages by concern; see below)                |
+| `tests/`                 | Pytest, grouped by area (`config/`, `csv/`, `agent/`, `ingestion/`, …) |
+| `specs/`                 | Specs and `@pytest.mark.spec(...)` links                               |
+| `docs/`                  | Architecture, adapter switching, security notes                        |
+| `plan.md`                | Implementation iterations (tracking)                                   |
+
 
 **Source subpackages (aligned with implementation iterations):** `config/` (settings), `models/` (domain + tool payloads), `csv/` (mapping + loader), `normalization/`, `matching/`, `embedding/` (Ollama), `vector/` (Qdrant store), `retrieval/`, `telemetry/`, `ingestion/` (pipeline + CLI), `agent/` (Pydantic AI), `api/` (FastAPI REST layer), `observability/`, `health/`, `ui/` (Streamlit client). The top-level `app.py` re-exports the UI entry for `streamlit run src/vendor_lookup_rag/app.py`.
 
@@ -34,9 +36,32 @@ pytest
 2. **Qdrant** — `docker compose up -d` in this directory (see `docker-compose.yml`, image `≥ 1.16.0`).
 3. **Environment** — `cp .env.example .env` and adjust URLs/models.
 
-Default URLs: Ollama `http://localhost:11434`, Qdrant `http://localhost:6333`.
+Default URLs: Ollama `http://localhost:11434`, Qdrant `http://localhost:6333`, vendor API `http://127.0.0.1:8000` (Streamlit uses `VENDOR_LOOKUP_API_BASE_URL` to reach it).
 
-**Runbook (health checks, env for integration tests, CI parity):** see [`docs/dev-stack.md`](docs/dev-stack.md). Quick verify: `./scripts/verify_stack.sh` (or `qdrant-only` before Qdrant-only pytest).
+### Health checks and integration test env
+
+Before integration tests or heavy jobs, verify Qdrant and (if needed) Ollama with the same endpoints as [`src/vendor_lookup_rag/health/http.py`](src/vendor_lookup_rag/health/http.py) (Qdrant `GET …/readyz`, Ollama `GET …/api/tags`):
+
+```bash
+./scripts/verify_stack.sh
+./scripts/verify_stack.sh qdrant-only   # same surface as the CI Qdrant integration job
+```
+
+Use the same variable names **locally and in CI** for pytest. `tests/conftest.py` defaults match `.env.example` when variables are unset.
+
+| Variable | Role | Typical local | CI (Qdrant integration job) |
+|----------|------|---------------|----------------------------|
+| `QDRANT_URL` | Qdrant HTTP API (ingest, retrieval, **API** process) | `http://localhost:6333` | `http://127.0.0.1:6333` |
+| `OLLAMA_BASE_URL` | Ollama HTTP API (**API** process and CLI ingest) | `http://localhost:11434` | *(not set in Qdrant-only job)* |
+| `VENDOR_LOOKUP_API_BASE_URL` | Vendor REST API (**Streamlit** only) | `http://127.0.0.1:8000` | *(N/A in default CI; UI not exercised)* |
+
+**Integration (Qdrant, no live Ollama)** — align with `.github/workflows/vendor-lookup-rag-ci.yml`:
+
+```bash
+export QDRANT_URL="${QDRANT_URL:-http://127.0.0.1:6333}"
+./scripts/verify_stack.sh qdrant-only
+pytest -m "integration and not requires_ollama" --tb=short -v
+```
 
 ## Ingest vendor CSV
 
@@ -77,7 +102,7 @@ streamlit run src/vendor_lookup_rag/app.py
 # or: streamlit run src/vendor_lookup_rag/ui/app.py
 ```
 
-`app.py` at the package root delegates to `ui/app.py`. **Docker Compose** starts the `api` service on port 8000 and `app` (Streamlit) with `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` — see [`deploy-and-run.md`](deploy-and-run.md).
+`app.py` at the package root delegates to `ui/app.py`. **Docker Compose** starts the `api` service on port 8000 and `app` (Streamlit) with `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` — see `[deploy-and-run.md](deploy-and-run.md)`.
 
 ## Tests
 
@@ -85,7 +110,7 @@ streamlit run src/vendor_lookup_rag/app.py
 - **Large local CSV:** With `data/vendor-data.csv` present, run `pytest -m large_csv` to stream-parse and mock-ingest the full file (tens of seconds for ~60k rows). To run **every** test including `large_csv`, use e.g. `pytest -m "large_csv or not large_csv"` or override `addopts` in `pyproject.toml` for that run.
 - **Integration (Qdrant running):** Start Qdrant with `docker compose up -d` in this directory, then run `pytest -m integration` (uses `skip_if_no_qdrant` when `QDRANT_URL` is unreachable).
 - **Ollama (optional):** With the Ollama daemon running and the embedding model pulled (`ollama pull` for `EMBEDDING_MODEL` in `.env`), run  
-  `pytest -m "requires_ollama and integration"` to exercise the real embedding HTTP client (`tests/embedding/test_ollama.py`), and end-to-end retrieval (`tests/retrieval/test_retrieval_integration.py`).
+`pytest -m "requires_ollama and integration"` to exercise the real embedding HTTP client (`tests/embedding/test_ollama.py`), and end-to-end retrieval (`tests/retrieval/test_retrieval_integration.py`).
 
 ## Retrieval telemetry (optional)
 
@@ -97,3 +122,4 @@ GitHub Actions: `.github/workflows/vendor-lookup-rag-ci.yml` (runs on push, pull
 
 - **Unit job:** `pip install -e ".[dev]"` and `pytest` (default markers: no `large_csv`, no `requires_ollama`).
 - **Integration job (Qdrant):** starts `docker compose up -d` for Qdrant, waits for `/readyz`, then `pytest -m "integration and not requires_ollama"` so live Qdrant tests run without Ollama. Runs in parallel with the unit job.
+

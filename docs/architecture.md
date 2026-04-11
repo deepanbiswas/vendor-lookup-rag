@@ -4,6 +4,8 @@
 
 The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Generation) pipeline. The **Streamlit** UI is a thin **HTTP client** to a **FastAPI** service that hosts the Pydantic AI agent, retrieval tool, and connections to **Ollama** and **Qdrant**. This keeps inference and vector search behind a stable REST surface while preserving the same chat behavior as the former in-process design.
 
+**Operations:** Run order (Ollama and Qdrant up, then the vendor API, then Streamlit), Docker Compose layout, health scripts, and environment variables for local development and integration tests are described in the repository **[README.md](../README.md)**.
+
 ## 2. Core components
 
 ### A. CSV importer (data pipeline)
