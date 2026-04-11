@@ -56,7 +56,7 @@ isProject: false
 - **Ollama:** First required for **iteration 5** (embedding client). Document **local install + model pull** on the Mac (Metal); adding **Ollama to `docker-compose.yml`** is **optional** in iteration 5 or later if you prefer containerized inference.
 - **Qdrant:** Introduce **`docker-compose.yml` with Qdrant** in **iteration 6** when the vector-store adapter is implemented and you want real DB integration tests. Image tag **≥ 1.16.0**.
 - **Later iterations** (7–9) reuse the same stack; iteration 11 can add **Redis**, CI jobs, and a **full-stack compose profile** without blocking earlier work.
-- **Vendor REST API:** The chat path is served by **FastAPI** in `vendor_lookup_rag.api` (wired after the agent exists). **Streamlit** only calls this API over HTTP (`VENDOR_LOOKUP_API_BASE_URL`). Compose runs **`api`** (port 8000) and **`app`** (Streamlit) alongside **Qdrant**; see [deploy-and-run.md](../deploy-and-run.md).
+- **Vendor REST API:** The chat path is served by **FastAPI** in `vendor_lookup_rag.api` (wired after the agent exists). **Streamlit** only calls this API over HTTP (`VENDOR_LOOKUP_API_BASE_URL`). Compose runs **`api`** (port 8000) and **`app`** (Streamlit) alongside **Qdrant**; see [deploy-and-run.md](../docs/deploy-and-run.md).
 
 ### Ollama deployment: what “separate” means and what to recommend
 
@@ -70,7 +70,7 @@ isProject: false
 
 **Recommendation for “others run this on their laptop”:**
 
-1. [x] **Document as the default path:** Install **Ollama natively**, pull the embedding and chat models, then `docker compose up` for **Qdrant**, **vendor API**, and **Streamlit** (and Redis if used). List env vars (`OLLAMA_BASE_URL`, `QDRANT_URL`, `VENDOR_LOOKUP_API_BASE_URL`, etc.) in `.env.example`. _(Done: [README.md](../README.md), [.env.example](../.env.example), [deploy-and-run.md](../deploy-and-run.md).)_
+1. [x] **Document as the default path:** Install **Ollama natively**, pull the embedding and chat models, then `docker compose up` for **Qdrant**, **vendor API**, and **Streamlit** (and Redis if used). List env vars (`OLLAMA_BASE_URL`, `QDRANT_URL`, `VENDOR_LOOKUP_API_BASE_URL`, etc.) in `.env.example`. _(Done: [README.md](../README.md), [.env.example](../.env.example), [deploy-and-run.md](../docs/deploy-and-run.md).)_
 2. [ ] **Add an optional Compose `profile` (e.g. `ollama`)** for teams who want everything containerized—**with a README callout** that **Mac users should prefer host Ollama** for performance; Linux users may use either. _(Not implemented; optional follow-up.)_
 3. [x] **CI:** Prefer **CPU Ollama in Docker** or **mock** for integration tests; do not assume Metal in CI. _(Done: default `pytest` is unit-only; integration tests skip without services.)_
 
@@ -208,7 +208,7 @@ flowchart LR
 - [ ] Optional **Ollama Compose profile** — not added (optional per plan; host Ollama documented).
 - [x] [.env.example](../.env.example) with env vars.
 - [x] CI workflow: [.github/workflows/vendor-lookup-rag-ci.yml](../.github/workflows/vendor-lookup-rag-ci.yml) (unit `pytest` and Qdrant integration on push/PR).
-- [x] [README.md](../README.md) runbook: host Ollama + `docker compose` for Qdrant, vendor API, and Streamlit ([deploy-and-run.md](../deploy-and-run.md)).
+- [x] [README.md](../README.md) runbook: host Ollama + `docker compose` for Qdrant, vendor API, and Streamlit ([deploy-and-run.md](../docs/deploy-and-run.md)).
 
 ---
 

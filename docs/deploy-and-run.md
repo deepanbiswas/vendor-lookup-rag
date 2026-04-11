@@ -1,6 +1,6 @@
 # Deploy and run (macOS and Windows)
 
-This project runs **Qdrant**, the **FastAPI vendor API**, and the **Streamlit** UI in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific). For local development run order, health scripts, and integration-test environment variables (parity with CI), see the **[README.md](README.md)** “Local stack” and “Health checks and integration test env” sections.
+This project runs **Qdrant**, the **FastAPI vendor API**, and the **Streamlit** UI in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific). For local development run order, health scripts, and integration-test environment variables (parity with CI), see the **[README.md](../README.md)** “Local stack” and “Health checks and integration test env” sections.
 
 | Component       | How it runs                                                                                   |
 | --------------- | --------------------------------------------------------------------------------------------- |
@@ -33,7 +33,7 @@ chmod +x scripts/install-ollama-macos.sh
 ./scripts/install-ollama-macos.sh
 ```
 
-This uses **Homebrew** to install Ollama, starts the service, and pulls `nomic-embed-text` and `gemma4:e4b` (see `.env.example`).
+This uses **Homebrew** to install Ollama, starts the service, and pulls `nomic-embed-text` and `gemma4:e4b` (see `.env.example`). Depending on the size of model this part would take some time. `gemma4:e4b` takes almost 10GB on your disk.
 
 If you do not use Homebrew, install Ollama from [ollama.com](https://ollama.com) and run the same `ollama pull` commands manually.
 
@@ -74,6 +74,8 @@ docker compose run --rm \
   -v "$(pwd)/data:/data:ro" \
   app vendor-ingest /data/vendor-data.csv --dry-run
 ```
+
+Ingestion takes time if the csv file has a large number of rows.
 
 ### 5. Stop services
 

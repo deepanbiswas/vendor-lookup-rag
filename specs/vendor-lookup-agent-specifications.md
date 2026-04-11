@@ -18,7 +18,7 @@ This project automates the verification of vendor details extracted from invoice
 
 ## 3. Non-Functional Requirements
 * **Local Execution:** All inference, embeddings, and database operations must run 100% locally on the host machine.
-* **Containerization:** The deployable stack must be describable in a single `docker-compose.yml` (e.g. Qdrant, the vendor API, and the Streamlit UI; Ollama typically on the host for Metal). See [deploy-and-run.md](../deploy-and-run.md).
+* **Containerization:** The deployable stack must be describable in a single `docker-compose.yml` (e.g. Qdrant, the vendor API, and the Streamlit UI; Ollama typically on the host for Metal). See [deploy-and-run.md](../docs/deploy-and-run.md).
 * **Hardware Optimization:** LLM and embedding generation must utilize Apple's Metal Performance Shaders (MPS) for low latency.
 * **Testability (TDD/SDD):** The architecture must be highly modular. Data ingestion, normalization, and retrieval logic must be broken down into individually testable Python functions.
 

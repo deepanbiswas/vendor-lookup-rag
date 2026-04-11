@@ -30,7 +30,7 @@ pytest
 
 ## Local stack
 
-**Docker deployment (Qdrant + vendor API + Streamlit in containers, Ollama on the host via `scripts/`):** see [`deploy-and-run.md`](deploy-and-run.md).
+**Docker deployment (Qdrant + vendor API + Streamlit in containers, Ollama on the host via `scripts/`):** see [`docs/deploy-and-run.md`](docs/deploy-and-run.md).
 
 1. **Ollama** (host install, [ollama.com](https://ollama.com)) — recommended on Apple Silicon for Metal. Pull models, e.g. `ollama pull nomic-embed-text` and `ollama pull gemma4:e4b` (or `gemma4:26b` if you switch `CHAT_MODEL` in `.env`; tags must match `ollama list`).
 2. **Qdrant** — `docker compose up -d` in this directory (see `docker-compose.yml`, image `≥ 1.16.0`).
@@ -104,7 +104,7 @@ streamlit run src/vendor_lookup_rag/app.py
 # or: streamlit run src/vendor_lookup_rag/ui/app.py
 ```
 
-`app.py` at the package root delegates to `ui/app.py`. **Docker Compose** starts the `api` service on port 8000 and `app` (Streamlit) with `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` — see `[deploy-and-run.md](deploy-and-run.md)`.
+`app.py` at the package root delegates to `ui/app.py`. **Docker Compose** starts the `api` service on port 8000 and `app` (Streamlit) with `VENDOR_LOOKUP_API_BASE_URL=http://api:8000` — see `[docs/deploy-and-run.md](docs/deploy-and-run.md)`.
 
 ## Tests
 
