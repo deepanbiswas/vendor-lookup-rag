@@ -10,6 +10,12 @@ class ServiceHealth(BaseModel):
     detail: str
 
 
+class HealthResponse(BaseModel):
+    """Ollama and Qdrant reachability only (``fetch_services_health_urls``)."""
+
+    services: dict[str, ServiceHealth]
+
+
 class StatusResponse(BaseModel):
     """Sidebar: service reachability plus model/threshold hints from server settings."""
 

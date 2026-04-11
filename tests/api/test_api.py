@@ -24,6 +24,20 @@ def _minimal_runtime(agent: FakeVendorAgentRunner) -> AppRuntime:
     return AppRuntime(agent=agent, deps=mock_deps, settings=mock_deps.settings)
 
 
+def test_get_health_returns_services_only() -> None:
+    agent = FakeVendorAgentRunner()
+    rt = _minimal_runtime(agent)
+    app = create_app(runtime=rt)
+    client = TestClient(app)
+
+    r = client.get("/v1/health")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data.keys()) == {"services"}
+    assert "ollama" in data["services"]
+    assert "qdrant" in data["services"]
+
+
 def test_get_status_returns_services_and_config() -> None:
     agent = FakeVendorAgentRunner()
     rt = _minimal_runtime(agent)

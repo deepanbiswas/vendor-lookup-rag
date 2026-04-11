@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from vendor_lookup_rag.agent.run_trace import format_agent_run_trace
-from vendor_lookup_rag.api.schemas import ChatRequest, ChatResponse, ServiceHealth, StatusResponse
+from vendor_lookup_rag.api.schemas import ChatRequest, ChatResponse, HealthResponse, ServiceHealth, StatusResponse
 from vendor_lookup_rag.api.runtime import AppRuntime
 from vendor_lookup_rag.health import fetch_services_health_urls
 from vendor_lookup_rag.ui.chat_display import assistant_markdown_from_run
@@ -23,6 +23,14 @@ def get_runtime(request: Request) -> AppRuntime:
     if rt is None:
         raise HTTPException(status_code=503, detail="API runtime not initialized")
     return rt
+
+
+@router.get("/v1/health", response_model=HealthResponse)
+def get_health(runtime: Annotated[AppRuntime, Depends(get_runtime)]) -> HealthResponse:
+    s = runtime.settings
+    raw = fetch_services_health_urls(s.ollama_base_url, s.qdrant_url)
+    services = {name: ServiceHealth(ok=ok, detail=detail) for name, (ok, detail) in raw.items()}
+    return HealthResponse(services=services)
 
 
 @router.get("/v1/status", response_model=StatusResponse)

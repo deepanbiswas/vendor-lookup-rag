@@ -19,7 +19,7 @@ The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Gener
 ### C. Vendor lookup REST API (FastAPI)
 
 * **Function:** Thin HTTP layer exposing chat and status endpoints.
-* **Action:** Builds `AgentDeps` (embedder + vector store), runs `VendorAgentRunner.run_sync`, and returns pre-rendered markdown and trace text. Exposes **GET `/v1/status`** (Ollama/Qdrant reachability plus model and threshold metadata for the UI sidebar).
+* **Action:** Builds `AgentDeps` (embedder + vector store), runs `VendorAgentRunner.run_sync`, and returns pre-rendered markdown and trace text. Exposes **GET `/v1/health`** (Ollama/Qdrant only), **GET `/v1/status`** (health plus model and threshold metadata for the Streamlit sidebar), and **POST `/v1/chat`**.
 
 ### D. Vendor lookup agent (orchestration layer)
 

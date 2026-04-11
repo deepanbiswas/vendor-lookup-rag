@@ -67,7 +67,7 @@ The Streamlit app is an HTTP client to the vendor lookup API. Run **Ollama** and
 From this directory (with the venv active and `pip install -e ".[dev]"` done):
 
 ```bash
-# Terminal 1 — REST API (default http://127.0.0.1:8000)
+# Terminal 1 — REST API (default http://127.0.0.1:8000; GET /v1/health, GET /v1/status, POST /v1/chat)
 vendor-api
 # or: python -m vendor_lookup_rag.api
 # In containers, set VENDOR_LOOKUP_API_HOST=0.0.0.0
