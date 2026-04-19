@@ -1,0 +1,276 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Vendor Lookup API",
+    "description": "Vendor lookup over a vector index with a conversational agent. OpenAPI 3.x document is served at `/openapi.json` and browsable via Swagger UI at `/docs`.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Service health",
+        "description": "Reports whether Ollama and Qdrant respond to HTTP health checks.",
+        "operationId": "get_health_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Status and configuration",
+        "description": "Same dependency health as `/v1/health`, plus chat/embedding model names and score thresholds.",
+        "operationId": "get_status_v1_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat turn",
+        "description": "Runs the vendor lookup agent once and returns rendered markdown plus a trace string.",
+        "operationId": "post_chat_v1_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest"
+      },
+      "ChatResponse": {
+        "properties": {
+          "display_markdown": {
+            "type": "string",
+            "title": "Display Markdown"
+          },
+          "trace_text": {
+            "type": "string",
+            "title": "Trace Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_markdown",
+          "trace_text"
+        ],
+        "title": "ChatResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ServiceHealth"
+            },
+            "type": "object",
+            "title": "Services"
+          }
+        },
+        "type": "object",
+        "required": [
+          "services"
+        ],
+        "title": "HealthResponse",
+        "description": "Ollama and Qdrant reachability only (``fetch_services_health_urls``)."
+      },
+      "ServiceHealth": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "detail"
+        ],
+        "title": "ServiceHealth"
+      },
+      "StatusResponse": {
+        "properties": {
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ServiceHealth"
+            },
+            "type": "object",
+            "title": "Services"
+          },
+          "chat_model": {
+            "type": "string",
+            "title": "Chat Model"
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model"
+          },
+          "score_threshold_exact": {
+            "type": "number",
+            "title": "Score Threshold Exact"
+          },
+          "score_threshold_partial": {
+            "type": "number",
+            "title": "Score Threshold Partial"
+          },
+          "score_tolerance": {
+            "type": "number",
+            "title": "Score Tolerance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "services",
+          "chat_model",
+          "embedding_model",
+          "score_threshold_exact",
+          "score_threshold_partial",
+          "score_tolerance"
+        ],
+        "title": "StatusResponse",
+        "description": "Sidebar: service reachability plus model/threshold hints from server settings."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Reachability of Ollama and Qdrant."
+    },
+    {
+      "name": "status",
+      "description": "Health plus model and scoring settings exposed to clients."
+    },
+    {
+      "name": "chat",
+      "description": "Run one agent turn with vendor retrieval."
+    }
+  ]
+}

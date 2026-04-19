@@ -30,7 +30,20 @@ def create_app(*, runtime: AppRuntime | None = None) -> FastAPI:
             rt: AppRuntime = app.state.runtime
             rt.shutdown()
 
-    app = FastAPI(title="Vendor Lookup API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Vendor Lookup API",
+        version="0.1.0",
+        description=(
+            "Vendor lookup over a vector index with a conversational agent. "
+            "OpenAPI 3.x document is served at `/openapi.json` and browsable via Swagger UI at `/docs`."
+        ),
+        openapi_tags=[
+            {"name": "health", "description": "Reachability of Ollama and Qdrant."},
+            {"name": "status", "description": "Health plus model and scoring settings exposed to clients."},
+            {"name": "chat", "description": "Run one agent turn with vendor retrieval."},
+        ],
+        lifespan=lifespan,
+    )
     app.include_router(router)
     return app
 

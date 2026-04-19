@@ -34,6 +34,7 @@ observability = [
 [project.scripts]
 vendor-ingest = "vendor_lookup_rag.ingestion.cli:main"
 vendor-api = "vendor_lookup_rag.api.__main__:main"
+vendor-api-openapi = "vendor_lookup_rag.api.openapi:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vendor_lookup_rag"]

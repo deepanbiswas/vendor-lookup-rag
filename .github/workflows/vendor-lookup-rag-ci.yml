@@ -22,6 +22,19 @@ jobs:
       - name: Unit tests
         run: pytest
 
+      - name: Generate OpenAPI JSON
+        run: vendor-api-openapi -o docs/openapi.json
+
+      - name: Verify OpenAPI matches committed spec
+        run: git diff --exit-code docs/openapi.json
+
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: docs/openapi.json
+          if-no-files-found: error
+
   test-integration-qdrant:
     runs-on: ubuntu-latest
     env:

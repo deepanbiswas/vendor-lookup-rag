@@ -25,7 +25,13 @@ def get_runtime(request: Request) -> AppRuntime:
     return rt
 
 
-@router.get("/v1/health", response_model=HealthResponse)
+@router.get(
+    "/v1/health",
+    response_model=HealthResponse,
+    tags=["health"],
+    summary="Service health",
+    description="Reports whether Ollama and Qdrant respond to HTTP health checks.",
+)
 def get_health(runtime: Annotated[AppRuntime, Depends(get_runtime)]) -> HealthResponse:
     s = runtime.settings
     raw = fetch_services_health_urls(s.ollama_base_url, s.qdrant_url)
@@ -33,7 +39,13 @@ def get_health(runtime: Annotated[AppRuntime, Depends(get_runtime)]) -> HealthRe
     return HealthResponse(services=services)
 
 
-@router.get("/v1/status", response_model=StatusResponse)
+@router.get(
+    "/v1/status",
+    response_model=StatusResponse,
+    tags=["status"],
+    summary="Status and configuration",
+    description="Same dependency health as `/v1/health`, plus chat/embedding model names and score thresholds.",
+)
 def get_status(runtime: Annotated[AppRuntime, Depends(get_runtime)]) -> StatusResponse:
     s = runtime.settings
     raw = fetch_services_health_urls(s.ollama_base_url, s.qdrant_url)
@@ -48,7 +60,13 @@ def get_status(runtime: Annotated[AppRuntime, Depends(get_runtime)]) -> StatusRe
     )
 
 
-@router.post("/v1/chat", response_model=ChatResponse)
+@router.post(
+    "/v1/chat",
+    response_model=ChatResponse,
+    tags=["chat"],
+    summary="Chat turn",
+    description="Runs the vendor lookup agent once and returns rendered markdown plus a trace string.",
+)
 def post_chat(
     body: ChatRequest,
     runtime: Annotated[AppRuntime, Depends(get_runtime)],
