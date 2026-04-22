@@ -33,7 +33,7 @@ pip install -e ".[dev]"
 pytest
 vendor-ingest path/to/vendors.csv
 vendor-api                    # REST API (default :8000); or: python -m vendor_lookup_rag.api
-streamlit run src/vendor_lookup_rag/app.py   # set VENDOR_LOOKUP_API_BASE_URL if not default
+streamlit run frontend/streamlit/src/vendor_lookup_streamlit/app.py   # set VENDOR_LOOKUP_API_BASE_URL if not default
 ```
 
 ## CSV format

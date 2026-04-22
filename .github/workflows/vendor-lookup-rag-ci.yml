@@ -17,13 +17,16 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
+        working-directory: backend/python
         run: pip install -e ".[dev]"
 
       - name: Unit tests
+        working-directory: backend/python
         run: pytest
 
       - name: Generate OpenAPI JSON
-        run: vendor-api-openapi -o docs/openapi.json
+        working-directory: backend/python
+        run: vendor-api-openapi -o ../../docs/openapi.json
 
       - name: Verify OpenAPI matches committed spec
         run: git diff --exit-code docs/openapi.json
@@ -34,6 +37,21 @@ jobs:
           name: openapi
           path: docs/openapi.json
           if-no-files-found: error
+
+  build-csharp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: dotnet test (C#)
+        run: dotnet test "backend/csharp/VendorLookupRag.sln" -c Release --logger "trx;LogFileName=csharp-results.trx" --results-directory "backend/csharp/TestResults"
+        env:
+          VENDOR_LOOKUP_CSHARP_PORT: "0"
 
   test-integration-qdrant:
     runs-on: ubuntu-latest
@@ -65,7 +83,9 @@ jobs:
           exit 1
 
       - name: Install dependencies
+        working-directory: backend/python
         run: pip install -e ".[dev]"
 
       - name: Integration tests (Qdrant only)
+        working-directory: backend/python
         run: pytest -m "integration and not requires_ollama" --tb=short -v

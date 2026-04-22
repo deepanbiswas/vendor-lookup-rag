@@ -47,16 +47,23 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: vendor-lookup-rag:local
+      dockerfile: Dockerfile.streamlit
+    image: vendor-lookup-frontend:local
     container_name: vendor_lookup_app
     ports:
       - "8501:8501"
-    command: ["streamlit", "run", "src/vendor_lookup_rag/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    command:
+      [
+        "streamlit",
+        "run",
+        "/app/frontend/streamlit/src/vendor_lookup_streamlit/app.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
+      ]
     env_file:
       - .env
     environment:
-      # Override .env (localhost) so in-container tools (Streamlit, vendor-ingest) reach Qdrant/Ollama
+      # Override .env (localhost) so the Streamlit container reaches Qdrant/Ollama
       VENDOR_LOOKUP_API_BASE_URL: http://api:8000
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://host.docker.internal:11434

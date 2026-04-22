@@ -2,9 +2,10 @@
 
 ## 1. System overview
 
-The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Generation) pipeline. The **Streamlit** UI is a thin **HTTP client** to a **FastAPI** service that hosts the Pydantic AI agent, retrieval tool, and connections to **Ollama** and **Qdrant**. This keeps inference and vector search behind a stable REST surface while preserving the same chat behavior as the former in-process design.
+The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Generation) pipeline. The **Streamlit** UI is a thin **HTTP client** to a **vendor lookup HTTP API** that can be implemented in **Python (FastAPI + Pydantic AI)** or **C# (ASP.NET Core, Ollama OpenAI-style chat + tools)**, with retrieval against **Ollama** and **Qdrant**. The REST surface is shared (`/v1/health`, `/v1/status`, `/v1/chat`).
 
-Domain code depends on **ports** (`TextEmbedder`, `VectorStore`, `VendorAgentRunner`); **adapters** wire the defaults (**Ollama** HTTP embeddings, **Qdrant** via `qdrant-client`, **Pydantic AI** runner wrapping chat). Factories and `build_production_runtime()` in the API layer compose them. See **[adapter-switching.md](adapter-switching.md)** for swapping implementations.
+- **Python:** domain code depends on **ports** (`TextEmbedder`, `VectorStore`, `VendorAgentRunner`); **adapters** use Ollama embeddings, Qdrant via `qdrant-client`, and Pydantic AI. Factories and `build_production_runtime()` in the API layer compose them.
+- **C#:** same idea with `ITextEmbedder`, `IVectorStore`, Ollama HTTP embed + Qdrant JSON search + an Ollama `/v1/chat/completions` tool loop (see `backend/csharp/src/VendorLookupRag/`). See **[adapter-switching.md](adapter-switching.md)** for swapping implementations.
 
 **Operations:** Run order (Ollama and Qdrant up, then the vendor API, then Streamlit), Docker Compose layout, health scripts, and environment variables for local development and integration tests are described in the repository **[README.md](../README.md)**.
 
@@ -20,10 +21,11 @@ Domain code depends on **ports** (`TextEmbedder`, `VectorStore`, `VendorAgentRun
 * **Function:** Scalable similarity search engine.
 * **Action:** Stores preprocessed vendor records as vector embeddings. Executes high-speed nearest-neighbor searches based on the query vectors it receives from the retrieval tool (via the API process).
 
-### C. Vendor lookup REST API (FastAPI)
+### C. Vendor lookup REST API (Python FastAPI or C# ASP.NET Core)
 
 * **Function:** Thin HTTP layer exposing chat, status, and machine-readable API metadata.
-* **Action:** Builds `AgentDeps` (embedder + vector store), runs `VendorAgentRunner.run_sync`, and returns pre-rendered markdown and trace text. Exposes **GET `/v1/health`** (Ollama/Qdrant only), **GET `/v1/status`** (health plus model and threshold metadata for the Streamlit sidebar), and **POST `/v1/chat`**. **OpenAPI 3.x** is served at **`GET /openapi.json`** with **Swagger UI** at **`GET /docs`**; a copy of the spec is also kept at **[openapi.json](openapi.json)** for review and CI.
+* **Python (FastAPI):** Builds `AgentDeps` (embedder + vector store), runs `VendorAgentRunner.run_sync`, and returns pre-rendered markdown and trace text. Exposes **GET `/v1/health`**, **GET `/v1/status`**, **POST `/v1/chat`**. **OpenAPI 3.x** is at **`GET /openapi.json`** and **Swagger UI** at **`GET /docs`**; a spec copy is at **[openapi.json](openapi.json)**.
+* **C#:** Same routes; Swagger at **`/swagger`**. No shared OpenAPI file with Python—compare behavior against `docs/openapi.json` or run both and diff responses for the same `POST /v1/chat` body.
 
 ### D. Vendor lookup agent (orchestration layer)
 
@@ -71,7 +73,7 @@ graph TD
 
     U[User - Invoice Processor]:::user
     UI(Streamlit UI - HTTP client):::ui
-    REST[Vendor Lookup REST API - FastAPI]:::api
+    REST[Vendor Lookup REST API - Python or C#]:::api
 
     subgraph apiProc [API process — runtime: AgentDeps + PydanticAiVendorAgent]
         DEPS[AgentDeps — TextEmbedder + VectorStore]:::deps

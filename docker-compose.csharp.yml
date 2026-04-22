@@ -1,0 +1,90 @@
+# Qdrant + C# vendor API + Streamlit. Ollama on the host.
+# Use: docker compose -f docker-compose.csharp.yml up --build -d
+# C# API: http://localhost:8001  Streamlit: http://localhost:8502
+# Qdrant on host: http://localhost:6335 (avoids clashing with docker-compose.yml on 6333/8501).
+#
+# Qdrant uses the same named volume as docker-compose.yml (qdrant_data) so collections
+# and points match the Python stack / single ingest. Run only one Qdrant service at a time
+# to avoid two containers writing the same volume.
+#
+# Qdrant cannot use a read-only storage mount: it must write WAL and shard metadata even
+# for search (see "Can't init WAL: Read-only file system" if you use :ro). "Query only"
+# is enforced by this app (search gRPC, no upsert) and by running ingest separately, not
+# by mounting the volume :ro.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.16.0
+    container_name: vendor_qdrant_csharp
+    ports:
+      - "6335:6333"
+      - "6336:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  api-csharp:
+    build:
+      context: .
+      dockerfile: backend/csharp/Dockerfile
+    image: vendor-lookup-csharp:local
+    container_name: vendor_lookup_api_csharp
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      VENDOR_LOOKUP_CSHARP_PORT: "8001"
+      # So Streamlit/HTTP clients get full /v1/chat exception text in Problem "detail" (turn off in production)
+      VENDOR_LOOKUP_EXPOSE_ERROR_DETAILS: "true"
+      # REST (health) uses QDRANT_URL; the C# vector store uses gRPC on this port (Qdrant listens on 6334 in-container).
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_GRPC_PORT: "6334"
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://127.0.0.1:8001/v1/health >/dev/null",
+        ]
+      interval: 10s
+      timeout: 6s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      - qdrant
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    image: vendor-lookup-frontend:local
+    container_name: vendor_lookup_app_csharp
+    ports:
+      - "8502:8501"
+    command:
+      [
+        "streamlit",
+        "run",
+        "/app/frontend/streamlit/src/vendor_lookup_streamlit/app.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
+      ]
+    env_file:
+      - .env
+    environment:
+      VENDOR_LOOKUP_API_BASE_URL: http://api-csharp:8001
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api-csharp:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:

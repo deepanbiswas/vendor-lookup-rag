@@ -1,0 +1,17 @@
+# Streamlit UI only: HTTP client to the vendor API. Does not install backend RAG, qdrant, or pydantic-ai.
+# The Python `api` service (Dockerfile) and C# image (backend/csharp/Dockerfile) are built separately.
+FROM python:3.12-slim-bookworm
+
+WORKDIR /app
+
+COPY frontend/streamlit /app/frontend/streamlit
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -e /app/frontend/streamlit
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "/app/frontend/streamlit/src/vendor_lookup_streamlit/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

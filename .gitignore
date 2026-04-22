@@ -34,3 +34,12 @@ data/raw/
 data/embeddings/
 # Large or sensitive local vendor datasets (keep out of git)
 data/
+
+# .NET
+**/bin/
+**/obj/
+*.user
+**/TestResults/
+
+# Draw.io local lock/backup (do not commit)
+**.$*.bkp

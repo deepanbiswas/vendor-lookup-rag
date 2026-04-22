@@ -1,14 +1,13 @@
 # Deploy and run (macOS and Windows)
 
-This project runs **Qdrant** and the **Python Streamlit app** in **Docker**. **Ollama** runs on the host machine and is installed with the scripts in `scripts/` (platform-specific).
+This project runs **Qdrant** and a **Streamlit** UI in **Docker**, with the **vendor API** implemented either in **Python (FastAPI)** or **C# (ASP.NET Core)** depending on the Compose file you use. **Ollama** runs on the host and is installed with the scripts in `scripts/` (platform-specific).
 
-| Component | How it runs |
-|-----------|-------------|
-| Qdrant | Docker (`docker-compose.yml` → service `qdrant`) |
-| Streamlit app | Docker (`docker-compose.yml` → service `app`) |
-| Ollama | Host — install with `scripts/install-ollama-macos.sh` or `scripts/install-ollama-windows.ps1` |
+| Compose file | Qdrant (host ports) | API | Streamlit (host port) |
+|--------------|---------------------|-----|------------------------|
+| [`docker-compose.yml`](../docker-compose.yml) | 6333 / 6334 | **Python** `api` on **8000** | **8501** (→ `VENDOR_LOOKUP_API_BASE_URL=http://api:8000`) |
+| [`docker-compose.csharp.yml`](../docker-compose.csharp.yml) | **6335 / 6336** (avoids clashing with the default stack) | **C#** `api-csharp` on **8001** | **8502** (→ `VENDOR_LOOKUP_API_BASE_URL=http://api-csharp:8001`) |
 
-The Compose file sets `QDRANT_URL=http://qdrant:6333` and `OLLAMA_BASE_URL=http://host.docker.internal:11434` for the app container so it talks to Qdrant on the Docker network and Ollama on your machine.
+Ollama is not containerized. Both stacks set `QDRANT_URL=http://qdrant:6333` and `OLLAMA_BASE_URL=http://host.docker.internal:11434` inside the application containers so they reach Qdrant on the Docker network and Ollama on your machine.
 
 ---
 
@@ -41,18 +40,29 @@ If you do not use Homebrew, install Ollama from [ollama.com](https://ollama.com)
 cp .env.example .env
 ```
 
-Edit `.env` if needed (models, thresholds). For **Docker Compose**, you normally **do not** need to change `QDRANT_URL` or `OLLAMA_BASE_URL` in `.env` — `docker-compose.yml` overrides them for the `app` service.
+Edit `.env` if needed (models, thresholds). For **Docker Compose**, you normally **do not** need to change `QDRANT_URL` or `OLLAMA_BASE_URL` in `.env` — the compose file overrides them for the `app` and `api` / `api-csharp` services.
 
-### 3. Start Qdrant and the app
+### 3. Start Qdrant, API, and Streamlit
 
-From the repository root:
+**Python API (default):** from the repository root:
 
 ```bash
 docker compose up --build -d
 ```
 
 - Qdrant HTTP API: `http://localhost:6333`
+- Python API: `http://localhost:8000`
 - Streamlit UI: `http://localhost:8501`
+
+**C# API (alternate stack, different host ports):**
+
+```bash
+docker compose -f docker-compose.csharp.yml up --build -d
+```
+
+- Qdrant HTTP API (host): `http://localhost:6335`
+- C# API: `http://localhost:8001` (Swagger: `/swagger`)
+- Streamlit UI: `http://localhost:8502`
 
 ### 4. Ingest vendor CSV (one-off)
 
@@ -110,16 +120,27 @@ copy .env.example .env
 
 Edit `.env` as needed. Compose still overrides `QDRANT_URL` and `OLLAMA_BASE_URL` for the `app` container.
 
-### 3. Start Qdrant and the app
+### 3. Start Qdrant, API, and Streamlit
 
-From the repository root in PowerShell:
+**Python API (default):** from the repository root in PowerShell:
 
 ```powershell
 docker compose up --build -d
 ```
 
 - Qdrant: `http://localhost:6333`
+- Python API: `http://localhost:8000`
 - Streamlit: `http://localhost:8501`
+
+**C# API (alternate):**
+
+```powershell
+docker compose -f docker-compose.csharp.yml up --build -d
+```
+
+- Qdrant (host): `http://localhost:6335`
+- C# API: `http://localhost:8001`
+- Streamlit: `http://localhost:8502`
 
 ### 4. Ingest vendor CSV (one-off)
 
@@ -151,7 +172,7 @@ docker compose down
   Confirm Ollama is running on the host (`http://localhost:11434`). On Docker Desktop for Mac/Windows, `host.docker.internal` should resolve inside containers. On **Linux** hosts, `extra_hosts: host.docker.internal:host-gateway` in `docker-compose.yml` helps; ensure Docker supports it.
 
 - **App cannot reach Qdrant**  
-  Ensure both services are up: `docker compose ps`. The app must use `QDRANT_URL=http://qdrant:6333` inside Compose (already set in `docker-compose.yml`).
+  Ensure both services are up: `docker compose ps` (or the same with `-f docker-compose.csharp.yml`). Inside Compose, services use `QDRANT_URL=http://qdrant:6333`. On the **host**, use `http://localhost:6333` for the default stack or `http://localhost:6335` when you started [`docker-compose.csharp.yml`](../docker-compose.csharp.yml).
 
 - **Large CSV path**  
   Adjust the `-v` host path and the path passed to `vendor-ingest` so they match the mount inside the container.
@@ -163,4 +184,4 @@ docker compose down
 
 ## Optional: run ingest on the host (Python venv)
 
-If you prefer not to run ingestion in Docker, use a local Python 3.11+ environment, `pip install -e .`, set `.env` with `QDRANT_URL=http://localhost:6333` and `OLLAMA_BASE_URL=http://localhost:11434`, start only Qdrant with `docker compose up -d qdrant`, then run `vendor-ingest` on the host. The Streamlit app can still run in Docker with Compose as above.
+If you prefer not to run ingestion in Docker, use a local Python 3.11+ environment, `pip install -e "backend/python[dev]"` from the repo root, set `.env` with `QDRANT_URL` pointing at the Qdrant you started (`http://localhost:6333` for the default compose, or `http://localhost:6335` if only [`docker-compose.csharp.yml`](../docker-compose.csharp.yml) is up) and `OLLAMA_BASE_URL=http://localhost:11434`, then run `vendor-ingest` on the host. The Streamlit app can still run in Docker with either compose file as above.

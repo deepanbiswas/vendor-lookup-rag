@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vendor-lookup-rag"
+version = "0.1.0"
+description = "Vendor lookup against a vendor master list using RAG and a vector database"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Vendor Lookup RAG contributors" }]
+dependencies = [
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.0",
+    "pydantic-ai>=1.56.0",
+    "qdrant-client>=1.16.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "respx>=0.21",
+    "streamlit>=1.54.0",
+]
+observability = [
+    "logfire>=2.0",
+]
+
+[project.scripts]
+vendor-ingest = "vendor_lookup_rag.ingestion.cli:main"
+vendor-api = "vendor_lookup_rag.api.__main__:main"
+vendor-api-openapi = "vendor_lookup_rag.api.openapi:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vendor_lookup_rag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "../../frontend/streamlit/src"]
+addopts = "-q --strict-markers -m 'not large_csv and not requires_ollama'"
+markers = [
+    "spec: link to a spec id or path (e.g. specs/vendor-lookup-agent-specifications.md#s1-package-version)",
+    "integration: requires external services (e.g. Qdrant, Ollama)",
+    "requires_ollama: requires a running Ollama instance with models pulled",
+    "large_csv: reads data/vendor-data.csv when present; slow multi-second run",
+]
+
+[tool.coverage.run]
+source = ["src"]

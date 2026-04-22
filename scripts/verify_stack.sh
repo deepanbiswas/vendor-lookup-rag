@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fail fast if Qdrant / Ollama (and optionally the vendor HTTP API) are not reachable.
-# Same Qdrant/Ollama endpoints as src/vendor_lookup_rag/health/http.py.
+# Same Qdrant/Ollama endpoints as backend/python/src/vendor_lookup_rag/health/http.py.
 #
 # Usage:
 #   ./scripts/verify_stack.sh                 # Qdrant /readyz + Ollama /api/tags

@@ -14,8 +14,14 @@ This document outlines recent critical security vulnerabilities associated with 
 * **Vulnerability:** **CVE-2026-25628** (High) – A path traversal vulnerability existed in the `/logger` endpoint. It allowed attackers with minimal read-only access to append arbitrary content to files on the target system by exploiting an attacker-controlled log file path parameter, potentially leading to configuration tampering or persistence mechanisms. 
 * **Resolution:** Ensure the project uses **version 1.16.0 or higher**. The patch implements proper access control and restricts the ability to specify log file paths to the configuration file, preventing runtime manipulation through the API.
 
-## 4. Vendor HTTP API (FastAPI)
+## 4. Vendor HTTP API (Python, FastAPI)
 
-* **Surface:** The chat UI talks to a **FastAPI** application (`vendor-api` / `python -m vendor_lookup_rag.api`) over JSON REST (`/v1/chat`, `/v1/health`, `/v1/status`). The dependency stack pins **FastAPI** in [`pyproject.toml`](../pyproject.toml); keep it current with your security process.
-* **Deployment posture:** Defaults bind the API to **127.0.0.1** for local development (`VENDOR_LOOKUP_API_HOST` overrides this, e.g. `0.0.0.0` in Docker). There is **no authentication** on these endpoints in the reference setup—they are intended for trusted local or private networks. If you expose the API beyond localhost, add network controls (reverse proxy, mTLS, or application auth) appropriate to your threat model.
+* **Surface:** The chat UI calls a **FastAPI** app (`vendor-api` / `python -m vendor_lookup_rag.api`) over JSON REST (`/v1/chat`, `/v1/health`, `/v1/status`). The stack pins **FastAPI** in [`pyproject.toml`](../backend/python/pyproject.toml); keep it current with your security process.
+* **Deployment posture:** Defaults bind the API to **127.0.0.1** for local development (`VENDOR_LOOKUP_API_HOST` overrides this, e.g. `0.0.0.0` in Docker). The reference setup has **no authentication** on these endpoints—they are for trusted local or private networks. If you expose the API, add network controls (reverse proxy, mTLS, or application auth) appropriate to your threat model.
 * **Related:** Streamlit’s own CVE discussion above applies to the UI process; the API process does not serve Streamlit’s file APIs.
+
+## 5. Vendor HTTP API (C#, ASP.NET Core)
+
+* **Surface:** An alternate implementation in [`backend/csharp/`](../backend/csharp/) exposes the same REST routes. Dependencies are in the `.csproj`; run `dotnet list package --vulnerable` (or your org’s SCA) as part of your patch process.
+* **Deployment posture:** Same as Python: no built-in auth in the reference app; bind address and port follow `VENDOR_LOOKUP_CSHARP_PORT` / Kestrel configuration. Treat like any other internal API if exposed beyond localhost.
+* **Ingestion:** CSV ingestion remains **Python-only** (`vendor-ingest`); both APIs read the same Qdrant collection and environment variables for Ollama/Qdrant URLs.
