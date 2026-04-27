@@ -1,3 +1,6 @@
+# Python packaging (e.g. pip install -e)
+*.egg-info/
+
 # Byte-compiled / cache
 __pycache__/
 *.py[cod]

@@ -130,28 +130,28 @@ flowchart LR
 - [x] **Goal:** Settings (`pydantic-settings` or equivalent): reserve env vars for Ollama and Qdrant URLs even if unused until later iterations.
 - [x] **Tests — unit:** Load defaults; invalid env fails clearly.
 - [x] **Infra:** **None.** Register pytest markers `integration` and `requires_ollama` in [pyproject.toml](../pyproject.toml) for future use.
-- [x] **Delivers:** [`config/settings.py`](../src/vendor_lookup_rag/config/settings.py), updated [pyproject.toml](../pyproject.toml).
+- [x] **Delivers:** [`config/settings.py`](../backend/python/src/config/settings.py), updated [pyproject.toml](../pyproject.toml).
 
 ## Iteration 2 — Text normalization (pure functions)
 
 - **Status:** [x] **Complete**
 - [x] **Goal:** Query + CSV-oriented normalization per spec.
 - [x] **Tests:** **Unit only.**
-- [x] **Delivers:** [`normalization/text.py`](../src/vendor_lookup_rag/normalization/text.py) + tests.
+- [x] **Delivers:** [`normalization/text.py`](../backend/python/src/normalization/text.py) + tests.
 
 ## Iteration 3 — Vendor domain model and CSV loading
 
 - **Status:** [x] **Complete**
 - [x] **Goal:** Parse **vendor master CSV** → `VendorRecord`.
 - [x] **Tests:** **Unit only** — `tests/fixtures/`.
-- [x] **Delivers:** [`models/records.py`](../src/vendor_lookup_rag/models/records.py), [`csv/`](../src/vendor_lookup_rag/csv/) (loader + mapping).
+- [x] **Delivers:** [`models/records.py`](../backend/python/src/models/records.py), [`csv/`](../backend/python/src/csv/) (loader + mapping).
 
 ## Iteration 4 — Match classification (pure logic)
 
 - **Status:** [x] **Complete**
 - [x] **Goal:** Exact / Partial / No match mapping.
 - [x] **Tests:** **Unit only.**
-- [x] **Delivers:** [`matching/classify.py`](../src/vendor_lookup_rag/matching/classify.py) + tests.
+- [x] **Delivers:** [`matching/classify.py`](../backend/python/src/matching/classify.py) + tests.
 
 ## Iteration 5 — Ollama embedding client (**first Ollama contact**)
 
@@ -161,7 +161,7 @@ flowchart LR
 - [x] **Tests — integration:** `@pytest.mark.requires_ollama` — optional real call when Ollama is running and model is pulled; **skip** otherwise (document `ollama pull …`).
 - [x] **Infra:** **Default = host Ollama** documented in README / `.env.example`. 
 - [ ] **Optional:** Compose `profile` for Ollama (still open — same as §Ollama recommendation 2).
-- [x] **Delivers:** [`embedding/ollama.py`](../src/vendor_lookup_rag/embedding/ollama.py).
+- [x] **Delivers:** [`embedding/ollama.py`](../backend/python/src/embedding/ollama.py).
 
 ## Iteration 6 — Qdrant vector store (**first Docker Compose for Qdrant**)
 
@@ -169,7 +169,7 @@ flowchart LR
 - [x] **Goal:** `docker-compose.yml` with **Qdrant** (image **≥ 1.16.0**). Collection schema, upsert, search; thin wrapper over `qdrant-client`.
 - [x] **Tests — unit:** In-memory Qdrant (`:memory:`) + mocks where applicable.
 - [x] **Tests — integration:** Real Qdrant optional; `tests/conftest.py` skip if `QDRANT_URL` unreachable; [`integration/test_qdrant_optional.py`](../tests/integration/test_qdrant_optional.py).
-- [x] **Delivers:** [`vector/store.py`](../src/vendor_lookup_rag/vector/store.py), [`docker-compose.yml`](../docker-compose.yml).
+- [x] **Delivers:** [`vector/store.py`](../backend/python/src/vector/store.py), [`docker-compose.yml`](../docker-compose.yml).
 
 ## Iteration 7 — Ingestion pipeline (CSV → embeddings → Qdrant)
 
@@ -177,14 +177,14 @@ flowchart LR
 - [x] **Goal:** CLI ingest.
 - [x] **Tests — unit:** Mocks.
 - [x] **Tests — integration:** Full path when Ollama + Qdrant are up (otherwise skip) — covered by markers / manual runs; no dedicated automated E2E ingest test required by plan.
-- [x] **Delivers:** [`ingestion/pipeline.py`](../src/vendor_lookup_rag/ingestion/pipeline.py), [`ingestion/cli.py`](../src/vendor_lookup_rag/ingestion/cli.py), `vendor-ingest` entry in [pyproject.toml](../pyproject.toml).
+- [x] **Delivers:** [`ingestion/pipeline.py`](../backend/python/src/ingestion/pipeline.py), [`ingestion/cli.py`](../backend/python/src/ingestion/cli.py), `vendor-ingest` entry in [pyproject.toml](../pyproject.toml).
 
 ## Iteration 8 — Vendor retrieval tool
 
 - **Status:** [x] **Complete**
 - [x] **Goal:** Normalize → embed → search.
 - [x] **Tests — unit:** Mocks; optional integration when services up.
-- [x] **Delivers:** [`retrieval/retrieve.py`](../src/vendor_lookup_rag/retrieval/retrieve.py).
+- [x] **Delivers:** [`retrieval/retrieve.py`](../backend/python/src/retrieval/retrieve.py).
 
 ## Iteration 9 — Pydantic AI agent + LLM (Ollama)
 
@@ -192,14 +192,14 @@ flowchart LR
 - [x] **Goal:** Agent + tool + LLM.
 - [x] **Tests — unit:** Import / wiring smoke ([`agent/test_runner.py`](../tests/agent/test_runner.py)).
 - [x] **Tests — integration (optional):** Real Ollama LLM + Qdrant end-to-end — not automated (manual / nightly possible).
-- [x] **Delivers:** [`agent/runner.py`](../src/vendor_lookup_rag/agent/runner.py).
+- [x] **Delivers:** [`agent/runner.py`](../backend/python/src/agent/runner.py).
 
 ## Iteration 10 — Streamlit chat UI (HTTP client)
 
 - **Status:** [x] **Complete**
 - [x] **Goal:** Chat UI calling the vendor REST API over HTTP (no in-process agent).
 - [x] **Tests:** Smoke import ([`agent/test_runner.py`](../tests/agent/test_runner.py)); Streamlit AppTest; [`tests/api/test_api.py`](../tests/api/test_api.py); [`tests/ui/test_api_client.py`](../tests/ui/test_api_client.py) (httpx).
-- [x] **Delivers:** [`api/`](../src/vendor_lookup_rag/api/) (FastAPI), [`ui/app.py`](../src/vendor_lookup_rag/ui/app.py), [`ui/api_client.py`](../src/vendor_lookup_rag/ui/api_client.py), [`app.py`](../src/vendor_lookup_rag/app.py) (shim), [README.md](../README.md).
+- [x] **Delivers:** [`api/`](../backend/python/src/api/) (FastAPI), [`ui/app.py`](../backend/python/src/ui/app.py), [`ui/api_client.py`](../backend/python/src/ui/api_client.py), [`app.py`](../backend/python/src/app.py) (shim), [README.md](../README.md).
 
 ## Iteration 11 — Compose polish, CI, runbook
 

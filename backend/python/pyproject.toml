@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "vendor-lookup-rag"
@@ -36,12 +36,37 @@ vendor-ingest = "vendor_lookup_rag.ingestion.cli:main"
 vendor-api = "vendor_lookup_rag.api.__main__:main"
 vendor-api-openapi = "vendor_lookup_rag.api.openapi:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/vendor_lookup_rag"]
+[tool.setuptools]
+# Flat layout under `src/`: import name remains `vendor_lookup_rag` via `package-dir` above.
+# Keep in sync with subpackages that contain an `__init__.py` under `src/`.
+package-dir = { "vendor_lookup_rag" = "src" }
+packages = [
+    "vendor_lookup_rag",
+    "vendor_lookup_rag.adapters",
+    "vendor_lookup_rag.adapters.ollama",
+    "vendor_lookup_rag.adapters.pydantic_ai",
+    "vendor_lookup_rag.adapters.qdrant",
+    "vendor_lookup_rag.agent",
+    "vendor_lookup_rag.api",
+    "vendor_lookup_rag.config",
+    "vendor_lookup_rag.csv",
+    "vendor_lookup_rag.embedding",
+    "vendor_lookup_rag.health",
+    "vendor_lookup_rag.ingestion",
+    "vendor_lookup_rag.matching",
+    "vendor_lookup_rag.models",
+    "vendor_lookup_rag.normalization",
+    "vendor_lookup_rag.observability",
+    "vendor_lookup_rag.ports",
+    "vendor_lookup_rag.retrieval",
+    "vendor_lookup_rag.telemetry",
+    "vendor_lookup_rag.ui",
+    "vendor_lookup_rag.vector",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "../../frontend/streamlit/src"]
+pythonpath = ["../../frontend/streamlit/src"]
 addopts = "-q --strict-markers -m 'not large_csv and not requires_ollama'"
 markers = [
     "spec: link to a spec id or path (e.g. specs/vendor-lookup-agent-specifications.md#s1-package-version)",

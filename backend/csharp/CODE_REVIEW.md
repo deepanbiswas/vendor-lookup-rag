@@ -1,6 +1,6 @@
 # C# backend code review (VendorLookupRag)
 
-**Scope:** `backend/csharp/src/VendorLookupRag` and tests.  
+**Scope:** `backend/csharp/src` and tests.  
 **Date:** 2026-04-22 (review + applied fixes noted inline).
 
 ## Summary

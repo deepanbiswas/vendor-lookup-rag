@@ -1,6 +1,29 @@
 """Shared pytest fixtures for vendor_lookup_rag."""
 
+from __future__ import annotations
+
+import importlib.util
 import os
+import sys
+from pathlib import Path
+
+# Allow `pytest` without a prior `pip install -e .` (code lives in `../src/`, import name is `vendor_lookup_rag`).
+try:
+    import vendor_lookup_rag  # noqa: F401
+except ModuleNotFoundError:  # pragma: no cover - local dev only
+    _init = Path(__file__).resolve().parent.parent / "src" / "__init__.py"
+    if _init.is_file():
+        _spec = importlib.util.spec_from_file_location(
+            "vendor_lookup_rag",
+            _init,
+            submodule_search_locations=[str(_init.parent)],
+        )
+        if _spec and _spec.loader:
+            _m = importlib.util.module_from_spec(_spec)
+            sys.modules["vendor_lookup_rag"] = _m
+            _spec.loader.exec_module(_m)
+    else:  # pragma: no cover
+        raise
 
 import httpx
 import pytest

@@ -1,11 +1,11 @@
 # C# vendor lookup API (default listen port 8001 in-app; map host port in compose).
 # Build context: repository root. Example: docker build -f backend/csharp/Dockerfile -t vendor-lookup-csharp:local .
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY backend/csharp/ ./backend/csharp/
-RUN dotnet publish backend/csharp/src/VendorLookupRag/VendorLookupRag.csproj -c Release -o /out
+RUN dotnet publish backend/csharp/src/VendorLookupRag.csproj -c Release -o /out
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 # Only extra OS package: curl (not present in the base image) for the HTTP health check in docker-compose.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \

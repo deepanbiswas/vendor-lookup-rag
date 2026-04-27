@@ -16,7 +16,7 @@ This is a **standalone** Git repository.
 
 **Two backends, one UI:** set `VENDOR_LOOKUP_API_BASE_URL` to the Python API (*http://127.0.0.1:8000* by default) or the C# API (*http://127.0.0.1:8001*). **Ingest** (`vendor-ingest`) is Python-only today; both APIs read the same Qdrant collection and Ollama settings.
 
-**Source subpackages (Python, under `backend/python/src/vendor_lookup_rag/`):** `config/`, `models/`, `csv/`, `normalization/`, `matching/`, `embedding/`, `adapters/`, `vector/`, `retrieval/`, `telemetry/`, `ingestion/`, `agent/`, `api/`, `observability/`, `health/`, and `ui/` (chat display helpers for the **API** response, not the Streamlit app). The C# project mirrors the same **ports** (`ITextEmbedder`, `IVectorStore`) and **adapters** (Ollama embed, Qdrant HTTP search, Ollama chat+tools).
+**Source subpackages (Python, under `backend/python/src/`):** `config/`, `models/`, `csv/`, `normalization/`, `matching/`, `embedding/`, `adapters/`, `vector/`, `retrieval/`, `telemetry/`, `ingestion/`, `agent/`, `api/`, `observability/`, `health/`, and `ui/` (chat display helpers for the **API** response, not the Streamlit app). The C# project mirrors the same **ports** (`ITextEmbedder`, `IVectorStore`) and **adapters** (Ollama embed, Qdrant HTTP search, Ollama chat+tools).
 
 ## Quick start (development)
 
@@ -31,7 +31,7 @@ pytest --rootdir=backend/python -c backend/python/pyproject.toml
 # Or: cd backend/python && pytest
 ```
 
-**C# API (optional):** install [.NET 9 SDK](https://dotnet.microsoft.com/download), then from the repo root: `dotnet run --project backend/csharp/src/VendorLookupRag` (or set `VENDOR_LOOKUP_CSHARP_PORT`). Open Swagger at `http://127.0.0.1:8001/swagger`.
+**C# API (optional):** install [.NET 10 SDK](https://dotnet.microsoft.com/download), then from the repo root: `dotnet run --project backend/csharp/src` (or set `VENDOR_LOOKUP_CSHARP_PORT`). Open Swagger at `http://127.0.0.1:8001/swagger`.
 
 **Streamlit:** with the frontend installed and the API running, point `VENDOR_LOOKUP_API_BASE_URL` at the chosen backend and run:
 
@@ -56,7 +56,7 @@ streamlit run frontend/streamlit/src/vendor_lookup_streamlit/app.py
 | `QDRANT_URL` | Ingest, retrieval, both APIs | `http://localhost:6333` | same |
 | `OLLAMA_BASE_URL` | Ingest, both APIs | `http://localhost:11434` | same |
 
-**Health checks and integration test env** — as before, use [`scripts/verify_stack.sh`](scripts/verify_stack.sh). Health logic matches [`backend/python/src/vendor_lookup_rag/health/http.py`](backend/python/src/vendor_lookup_rag/health/http.py) for Python; the C# service issues the same HTTP checks.
+**Health checks and integration test env** — as before, use [`scripts/verify_stack.sh`](scripts/verify_stack.sh). Health logic matches [`backend/python/src/health/http.py`](backend/python/src/health/http.py) for Python; the C# service issues the same HTTP checks.
 
 **Integration (Qdrant, no live Ollama in CI for default markers):** start Qdrant, then from `backend/python/`: `pytest -m "integration and not requires_ollama"`.
 
@@ -67,7 +67,7 @@ Unchanged: run `vendor-ingest` from an environment where `backend/python` is ins
 ## REST API and chat UI (Streamlit)
 
 1. **Python API:** from repo root (with venv): `cd backend/python && vendor-api` (default *http://127.0.0.1:8000*; `VENDOR_LOOKUP_API_HOST=0.0.0.0` in containers).
-2. **C# API:** `dotnet run --project backend/csharp/src/VendorLookupRag` (port **8001** by default; override with `VENDOR_LOOKUP_CSHARP_PORT`).
+2. **C# API:** `dotnet run --project backend/csharp/src` (port **8001** by default; override with `VENDOR_LOOKUP_CSHARP_PORT`).
 
 3. **Streamlit:** set `VENDOR_LOOKUP_API_BASE_URL` to the backend you started, then run the `streamlit` command above.
 

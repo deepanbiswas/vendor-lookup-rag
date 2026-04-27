@@ -5,7 +5,7 @@
 The Vendor Lookup Agent is a modular, local-first RAG (Retrieval-Augmented Generation) pipeline. The **Streamlit** UI is a thin **HTTP client** to a **vendor lookup HTTP API** that can be implemented in **Python (FastAPI + Pydantic AI)** or **C# (ASP.NET Core, Ollama OpenAI-style chat + tools)**, with retrieval against **Ollama** and **Qdrant**. The REST surface is shared (`/v1/health`, `/v1/status`, `/v1/chat`).
 
 - **Python:** domain code depends on **ports** (`TextEmbedder`, `VectorStore`, `VendorAgentRunner`); **adapters** use Ollama embeddings, Qdrant via `qdrant-client`, and Pydantic AI. Factories and `build_production_runtime()` in the API layer compose them.
-- **C#:** same idea with `ITextEmbedder`, `IVectorStore`, Ollama HTTP embed + Qdrant JSON search + an Ollama `/v1/chat/completions` tool loop (see `backend/csharp/src/VendorLookupRag/`). See **[adapter-switching.md](adapter-switching.md)** for swapping implementations.
+- **C#:** same idea with `ITextEmbedder`, `IVectorStore`, Ollama HTTP embed + Qdrant JSON search + an Ollama `/v1/chat/completions` tool loop (see `backend/csharp/src/`). See **[adapter-switching.md](adapter-switching.md)** for swapping implementations.
 
 **Operations:** Run order (Ollama and Qdrant up, then the vendor API, then Streamlit), Docker Compose layout, health scripts, and environment variables for local development and integration tests are described in the repository **[README.md](../README.md)**.
 

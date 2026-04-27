@@ -1,12 +1,12 @@
 # C# backend (VendorLookupRag)
 
-ASP.NET Core 9 app exposing the same JSON contract as the Python API: `GET /v1/health`, `GET /v1/status`, `POST /v1/chat`. Default listen port is **8001** (`VENDOR_LOOKUP_CSHARP_PORT`; set to **0** for in-memory test runs).
+ASP.NET Core 10 app exposing the same JSON contract as the Python API: `GET /v1/health`, `GET /v1/status`, `POST /v1/chat`. Default listen port is **8001** (`VENDOR_LOOKUP_CSHARP_PORT`; set to **0** for in-memory test runs).
 
 ## Build and run
 
 ```bash
 # From repository root
-dotnet run --project backend/csharp/src/VendorLookupRag
+dotnet run --project backend/csharp/src
 # Swagger UI: http://127.0.0.1:8001/swagger
 ```
 
