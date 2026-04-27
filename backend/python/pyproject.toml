@@ -69,7 +69,7 @@ testpaths = ["tests"]
 pythonpath = ["../../frontend/streamlit/src"]
 addopts = "-q --strict-markers -m 'not large_csv and not requires_ollama'"
 markers = [
-    "spec: link to a spec id or path (e.g. specs/vendor-lookup-agent-specifications.md#s1-package-version)",
+    "spec: link to a spec id or path (e.g. specs/vendor-lookup-agent-specifications.md#s4-version-discoverability)",
     "integration: requires external services (e.g. Qdrant, Ollama)",
     "requires_ollama: requires a running Ollama instance with models pulled",
     "large_csv: reads data/vendor-data.csv when present; slow multi-second run",

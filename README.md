@@ -1,87 +1,128 @@
-# Vendor Lookup RAG (local)
+# Vendor Lookup RAG
 
-Vendor lookup on a vendor master list using **RAG**, **Ollama** (embeddings + chat), **Qdrant**, and an agent that can use a **Python (Pydantic AI)** or **C# (OpenAI-style tools + Ollama)** HTTP API, with a **Streamlit** front end and **TDD**-oriented tests.
+**Look up vendors from natural-language questions** against your own **vendor master list**, using a local **vector store** and **language model**—so invoice or procurement teams can verify a company name, address, or tax ID without sending data to a cloud RAG product.
 
-This is a **standalone** Git repository.
+This repository is **self-contained**: a **Streamlit** chat app talks to a small **HTTP API** (you can run the API in **Python** or **C#**), which in turn uses **Ollama** (embeddings + chat) and **Qdrant** (similarity search). Ingesting your CSV into Qdrant is done with a **Python** command-line tool.
 
-## Repository layout
+---
 
-| Path | Purpose |
-|------|---------|
-| `backend/python/` | **Python backend** — package `vendor_lookup_rag` (FastAPI, ingest CLI, domain, Pydantic AI adapters, tests). Install: `pip install -e ".[dev]"` from this directory. |
-| `backend/csharp/` | **C# backend** — ASP.NET Core API (same routes as Python). Build/test: `dotnet test backend/csharp/VendorLookupRag.sln`. See [backend/csharp/README.md](backend/csharp/README.md). |
-| `frontend/streamlit/` | **Streamlit UI** — installable package `vendor-lookup-frontend` (`vendor_lookup_streamlit`); HTTP client to whatever API you run. |
-| `docs/`, `specs/` | Architecture, OpenAPI copy, specifications |
-| `plan.md` | Implementation iterations (tracking) |
+## What to read first
 
-**Two backends, one UI:** set `VENDOR_LOOKUP_API_BASE_URL` to the Python API (*http://127.0.0.1:8000* by default) or the C# API (*http://127.0.0.1:8001*). **Ingest** (`vendor-ingest`) is Python-only today; both APIs read the same Qdrant collection and Ollama settings.
+| If you want to… | Open |
+|-----------------|------|
+| **Run the app** in Docker (simplest) | [docs/deploy-and-run.md](docs/deploy-and-run.md) — step-by-step, macOS/Windows, both compose stacks |
+| **Understand the design** (ports, adapters, two backends) | [docs/architecture.md](docs/architecture.md) |
+| **See the product requirements** (what the software must do) | [specs/vendor-lookup-agent-specifications.md](specs/vendor-lookup-agent-specifications.md) |
+| **See how it was built** (iterations, commands, SDD for contributors) | [specs/vendor-lookup-agent-plan.md](specs/vendor-lookup-agent-plan.md) |
 
-**Source subpackages (Python, under `backend/python/src/`):** `config/`, `models/`, `csv/`, `normalization/`, `matching/`, `embedding/`, `adapters/`, `vector/`, `retrieval/`, `telemetry/`, `ingestion/`, `agent/`, `api/`, `observability/`, `health/`, and `ui/` (chat display helpers for the **API** response, not the Streamlit app). The C# project mirrors the same **ports** (`ITextEmbedder`, `IVectorStore`) and **adapters** (Ollama embed, Qdrant HTTP search, Ollama chat+tools).
+---
 
-## Quick start (development)
+## How it works (one minute)
+
+1. You **load a vendor master CSV** into Qdrant (embeddings are computed for you).  
+2. A user **chats in the browser** (Streamlit).  
+3. Each message goes to the **vendor API** (`/v1/chat`); an **agent** calls a **search tool** that runs semantic search in Qdrant, then the model answers.  
+4. The UI shows **match quality** (exact, partial, or no match) so a human can decide next steps.
+
+**Ollama** usually runs **on your machine** (good performance on Apple Silicon). **Qdrant** and the optional **API + Streamlit** containers are started with **Docker Compose**.
+
+There are **two** API implementations (same JSON routes, different process): **Python (FastAPI)** and **C# (ASP.NET Core)**. Ingestion is **Python-only**. The chat UI just needs `VENDOR_LOOKUP_API_BASE_URL` pointed at whichever API you started.
+
+---
+
+## What you need
+
+- **Python 3.11+** — for ingest, the Python API, and tests.  
+- **Docker** (Docker Desktop is fine) — to run Qdrant and, if you like, the API and Streamlit in containers.  
+- **Ollama** — [ollama.com](https://ollama.com); install on the **host** for typical Mac setups.  
+- **.NET 10 SDK** — only if you work on or run the **C#** API locally.
+
+---
+
+## Path A: Run with Docker (good first run)
+
+1. **Clone** this repo and `cd` into it.  
+2. **Install Ollama** on the host and **pull** the embedding and chat models your `.env` will use (see `.env.example` for names). The repo has helper scripts under `scripts/`; full detail is in [docs/deploy-and-run.md](docs/deploy-and-run.md).  
+3. **Create config:** `cp .env.example .env` and adjust if needed.  
+4. **Start the stack** (Qdrant + Python API + Streamlit):  
+   `docker compose up --build -d`  
+5. **Ingest** your vendor CSV (example assumes data under `data/`): see the *Ingest* section in [docs/deploy-and-run.md](docs/deploy-and-run.md) (`docker compose run --rm` … `vendor-ingest`).  
+6. Open the **Streamlit** URL from the deploy doc (port **8501** for the default file). The UI talks to the Python API on **8000** by default when using `docker-compose.yml`.
+
+**C# API instead:** use `docker compose -f docker-compose.csharp.yml up --build -d` — different **host** ports (e.g. Qdrant **6335**, API **8001**, UI **8502**). Only run **one** Qdrant-backed stack at a time if they share a volume. Details: [docs/deploy-and-run.md](docs/deploy-and-run.md).
+
+**Verify** services: optional script [scripts/verify_stack.sh](scripts/verify_stack.sh) (Ollama + Qdrant + optional API check).
+
+---
+
+## Path B: Develop on the host (no Docker, or partial)
+
+From the **repository root**, with a virtual environment activated:
 
 ```bash
-cd vendor-lookup-rag
-python -m venv .venv
-source .venv/bin/activate
 pip install -e "backend/python[dev]"
-# Optional: run Streamlit from the frontend package
 pip install -e "frontend/streamlit"
-pytest --rootdir=backend/python -c backend/python/pyproject.toml
-# Or: cd backend/python && pytest
+cd backend/python && pytest
 ```
 
-**C# API (optional):** install [.NET 10 SDK](https://dotnet.microsoft.com/download), then from the repo root: `dotnet run --project backend/csharp/src` (or set `VENDOR_LOOKUP_CSHARP_PORT`). Open Swagger at `http://127.0.0.1:8001/swagger`.
+Run the **Python API**: `cd backend/python && vendor-api` (or `python -m vendor_lookup_rag.api`) — default **http://127.0.0.1:8000**.  
+Run **Streamlit**: `streamlit run frontend/streamlit/src/vendor_lookup_streamlit/app.py` and set `VENDOR_LOOKUP_API_BASE_URL` to that API.  
+**Ingest** (from `backend/python` with env vars pointing at Ollama/Qdrant): `vendor-ingest /path/to/vendors.csv`.
 
-**Streamlit:** with the frontend installed and the API running, point `VENDOR_LOOKUP_API_BASE_URL` at the chosen backend and run:
+**C# API (optional):** from repo root, `dotnet run --project backend/csharp/src` — see [backend/csharp/README.md](backend/csharp/README.md).
 
-```bash
-streamlit run frontend/streamlit/src/vendor_lookup_streamlit/app.py
-```
+---
 
-## Local stack
+## Important environment variables (overview)
 
-**Docker deployment (Ollama on the host):** see [`docs/deploy-and-run.md`](docs/deploy-and-run.md).
+| Variable | Role |
+|----------|------|
+| `OLLAMA_BASE_URL` | Where the app finds Ollama (e.g. `http://localhost:11434` on the host) |
+| `QDRANT_URL` | Qdrant HTTP API (ingest, Python path; C# also uses gRPC + related settings) |
+| `VENDOR_LOOKUP_API_BASE_URL` | **Streamlit only** — which vendor API to call (Python **8000** or C# **8001** locally) |
 
-- **Python API + UI:** `docker compose up` using [`docker-compose.yml`](docker-compose.yml) (Qdrant, `api` on 8000, Streamlit on 8501).
-- **C# API + UI:** `docker compose -f docker-compose.csharp.yml up --build` (Qdrant on host **6335**, C# API on **8001**, Streamlit on **8502** — avoids clashing with the default compose).
+Copy `.env.example` to `.env` and read comments there; Compose overrides some values inside containers.
 
-1. **Ollama** (host) — e.g. `ollama pull nomic-embed-text` and a chat model matching `CHAT_MODEL` in `.env` (e.g. `gemma4:e4b`).
-2. **Qdrant** — `docker compose up -d` in this directory (`docker-compose.yml`).
-3. **Environment** — `cp .env.example .env` and adjust URLs/models.
+---
 
-| Variable | Role | Typical (Python API) | C# API |
-|----------|------|----------------------|--------|
-| `VENDOR_LOOKUP_API_BASE_URL` | **Streamlit** only — which backend to call | `http://127.0.0.1:8000` | `http://127.0.0.1:8001` |
-| `QDRANT_URL` | Ingest, retrieval, both APIs | `http://localhost:6333` | same |
-| `OLLAMA_BASE_URL` | Ingest, both APIs | `http://localhost:11434` | same |
+## Repository layout (short)
 
-**Health checks and integration test env** — as before, use [`scripts/verify_stack.sh`](scripts/verify_stack.sh). Health logic matches [`backend/python/src/health/http.py`](backend/python/src/health/http.py) for Python; the C# service issues the same HTTP checks.
+| Location | What it is |
+|----------|------------|
+| [backend/python/](backend/python/) | Python package: ingest, FastAPI app, RAG domain code, **pytest** suite |
+| [backend/csharp/](backend/csharp/) | Optional **.NET 10** API, same HTTP contract as the Python service |
+| [frontend/streamlit/](frontend/streamlit/) | Streamlit UI package (HTTP **client** only) |
+| [docs/](docs/) | Architecture, deploy/run, security, OpenAPI copy |
+| [specs/](specs/) | Product spec + implementation / iteration plan |
 
-**Integration (Qdrant, no live Ollama in CI for default markers):** start Qdrant, then from `backend/python/`: `pytest -m "integration and not requires_ollama"`.
+Deeper C# notes: [backend/csharp/README.md](backend/csharp/README.md). Python packaging notes: [backend/python/README.md](backend/python/README.md).
 
-## Ingest vendor CSV
+---
 
-Unchanged: run `vendor-ingest` from an environment where `backend/python` is installed (see [README](backend/python/README.md) and root `.env`).
+## Ingesting your vendor CSV
 
-## REST API and chat UI (Streamlit)
+Use the **`vendor-ingest`** command (Python env, after `pip install -e "backend/python[dev]"`).
 
-1. **Python API:** from repo root (with venv): `cd backend/python && vendor-api` (default *http://127.0.0.1:8000*; `VENDOR_LOOKUP_API_HOST=0.0.0.0` in containers).
-2. **C# API:** `dotnet run --project backend/csharp/src` (port **8001** by default; override with `VENDOR_LOOKUP_CSHARP_PORT`).
+- Required columns include **`vendor_id`** and **`legal_name`**; optional fields and **column mapping** (including external JSON) are covered in the **CSV format** section of [specs/vendor-lookup-agent-plan.md](specs/vendor-lookup-agent-plan.md) and in `.env.example`.  
+- Full Docker examples: [docs/deploy-and-run.md](docs/deploy-and-run.md).
 
-3. **Streamlit:** set `VENDOR_LOOKUP_API_BASE_URL` to the backend you started, then run the `streamlit` command above.
+---
 
-`docker compose` (default file) points Streamlit at the **Python** `api` service (`http://api:8000`). The C# stack uses [`docker-compose.csharp.yml`](docker-compose.csharp.yml) and sets `VENDOR_LOOKUP_API_BASE_URL=http://api-csharp:8001`.
+## Tests and CI
 
-## Tests
+- **Python:** from `backend/python/`, run `pytest` (default excludes slow/large tests; see `pyproject.toml` markers: `integration`, `requires_ollama`, `large_csv`).  
+- **C#:** from repo root, `dotnet test backend/csharp/VendorLookupRag.sln -c Release` (needs .NET 10).  
+- **CI:** [`.github/workflows/vendor-lookup-rag-ci.yml`](.github/workflows/vendor-lookup-rag-ci.yml) runs both.
 
-- **Python:** from `backend/python/`: `pytest` (excludes `large_csv` and `requires_ollama` per `pyproject.toml` defaults). Markers: `integration`, `requires_ollama`, `large_csv` (see `pyproject.toml`).
-- **C#:** from repo root: `dotnet test backend/csharp/VendorLookupRag.sln -c Release` (32+ tests: domain, adapters, services, in-process API; see `backend/csharp/README.md`).
+---
 
-## CI
+## Security and telemetry
 
-`.github/workflows/vendor-lookup-rag-ci.yml` — Python install/tests/OpenAPI under `backend/python/`, and **`dotnet test`** for the C# solution.
+- Dependency and surface notes: [docs/security-notes.md](docs/security-notes.md).  
+- Optional Python retrieval telemetry: env vars like `VENDOR_LOOKUP_TELEMETRY_LOG_DIR` (see code and settings).
 
-## Retrieval telemetry (optional)
+---
 
-Unchanged: `VENDOR_LOOKUP_TELEMETRY_LOG_DIR` and related variables apply to the **Python** process where retrieval runs.
+## License
+
+The package metadata in this repository declares a **proprietary** license. Use the terms your organization applies to this codebase, or the `license` value in [backend/python/pyproject.toml](backend/python/pyproject.toml) as a hint for tooling.
